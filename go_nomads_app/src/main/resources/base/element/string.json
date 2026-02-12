@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "Go_nomads_appAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "Go_nomads_appAbility_label",
+      "value": "label"
+    }
+  ]
+}

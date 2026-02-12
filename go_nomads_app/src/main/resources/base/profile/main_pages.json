@@ -1,0 +1,32 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/SplashPage",
+    "pages/LoginPage",
+    "pages/RegisterPage",
+    "pages/MainPage",
+    "pages/CityDetailPage",
+    "pages/MeetupDetailPage",
+    "pages/ChatPage",
+    "pages/ProfileEditPage",
+    "pages/UserProfilePage",
+    "pages/EditSkillsPage",
+    "pages/EditInterestsPage",
+    "pages/EditSocialLinksPage",
+    "pages/CreateMeetupPage",
+    "pages/AIChatPage",
+    "pages/TravelPlanPage",
+    "pages/NotificationsPage",
+    "pages/FavoritesPage",
+    "pages/TermsOfServicePage",
+    "pages/CommunityGuidelinesPage",
+    "pages/PrivacyPolicyPage",
+    "pages/SettingsPage",
+    "pages/CoworkingListPage",
+    "pages/CoworkingDetailPage",
+    "pages/HotelListPage",
+    "pages/HotelDetailPage",
+    "pages/InnovationListPage",
+    "pages/InnovationDetailPage"
+  ]
+}
