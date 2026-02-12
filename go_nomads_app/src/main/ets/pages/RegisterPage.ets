@@ -1,42 +1,11 @@
 import { AppColors } from '../common/constants/AppColors';
 import { RouteConstants } from '../common/constants/RouteConstants';
-import { HttpService } from '../services/HttpService';
-import { TokenStorageService } from '../services/TokenStorageService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { AuthService } from '../services/AuthService';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'RegisterPage';
 const DOMAIN = 0x0001;
-
-/**
- * 注册响应用户信息
- */
-interface RegisterResponseUser {
-  id: string;
-  userName: string;
-  email: string;
-  role: string;
-}
-
-/**
- * 注册响应
- */
-interface RegisterResponse {
-  token: string;
-  refreshToken?: string;
-  expiresAt?: string;
-  user: RegisterResponseUser;
-}
-
-/**
- * 注册请求体
- */
-class RegisterRequestBody {
-  userName: string = '';
-  email: string = '';
-  password: string = '';
-}
 
 /**
  * 注册页面 - 对应 Flutter 端 register 页面
@@ -73,27 +42,7 @@ struct RegisterPage {
     this.errorMessage = '';
 
     try {
-      const httpService = HttpService.getInstance();
-      const regBody = new RegisterRequestBody();
-      regBody.userName = this.userName;
-      regBody.email = this.email;
-      regBody.password = this.password;
-      const result = await httpService.post<RegisterResponse>(ApiConfig.REGISTER_ENDPOINT, regBody);
-
-      // 保存 Token 和用户信息
-      const tokenService = TokenStorageService.getInstance();
-      await tokenService.saveTokens(
-        result.token,
-        result.refreshToken,
-        result.expiresAt ? new Date(result.expiresAt) : undefined
-      );
-      await tokenService.saveUserInfo(
-        result.user.id,
-        result.user.userName,
-        result.user.email,
-        result.user.role,
-      );
-
+      await AuthService.getInstance().register(this.userName, this.email, this.password);
       hilog.info(DOMAIN, TAG, '✅ 注册成功');
       // 跳转到主页
       router.replaceUrl({ url: `pages/${RouteConstants.MAIN}` });

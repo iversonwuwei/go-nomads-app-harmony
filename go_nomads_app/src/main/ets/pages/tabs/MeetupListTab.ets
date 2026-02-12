@@ -1,6 +1,5 @@
 import { Meetup, MeetupHelper, MeetupStatus, MeetupType } from '../../models/Meetup';
-import { HttpService } from '../../services/HttpService';
-import { ApiConfig } from '../../common/constants/ApiConfig';
+import { MeetupService } from '../../services/MeetupService';
 import { AppColors } from '../../common/constants/AppColors';
 import { RouteConstants } from '../../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
@@ -16,7 +15,10 @@ const DOMAIN = 0x0001;
 export struct MeetupListTab {
   @State meetups: Meetup[] = [];
   @State isLoading: boolean = true;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
   @State selectedFilter: string = '全部';
+  @State isRefreshing: boolean = false;
 
   private filters: string[] = ['全部', '即将开始', '进行中', '我参加的'];
 
@@ -26,17 +28,19 @@ export struct MeetupListTab {
 
   async loadMeetups(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const meetups = await httpService.get<Meetup[]>(ApiConfig.MEETUPS_ENDPOINT, {
-        queryParams: { 'pageSize': '50' },
-      });
+      const meetupService = MeetupService.getInstance();
+      const meetups = await meetupService.getMeetups('upcoming', 1, 50);
       this.meetups = meetups;
       hilog.info(DOMAIN, TAG, '✅ 加载 %{public}d 个聚会', meetups.length);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载聚会失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err instanceof Error) ? err.message : '加载失败';
+      hilog.error(DOMAIN, TAG, '❌ 加载聚会失败: %{public}s', this.errorMsg);
     } finally {
       this.isLoading = false;
+      this.isRefreshing = false;
     }
   }
 
@@ -81,15 +85,39 @@ export struct MeetupListTab {
       this.FilterBar()
 
       // 聚会列表
-      if (this.isLoading) {
+      if (this.isLoading && !this.isRefreshing) {
         Column() {
           LoadingProgress().width(40).height(40)
         }
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+      } else if (this.hasError) {
+        Column({ space: 12 }) {
+          Text('😞').fontSize(48)
+          Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
+          Text(this.errorMsg).fontSize(13).fontColor(AppColors.TEXT_TERTIARY)
+          Button('重试')
+            .height(36)
+            .fontSize(14)
+            .borderRadius(18)
+            .backgroundColor(AppColors.PRIMARY)
+            .fontColor('#FFFFFF')
+            .onClick(() => {
+              this.loadMeetups();
+            })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
       } else {
-        this.MeetupList()
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          this.MeetupList()
+        }
+        .layoutWeight(1)
+        .onRefreshing(() => {
+          this.loadMeetups();
+        })
       }
     }
     .width('100%')

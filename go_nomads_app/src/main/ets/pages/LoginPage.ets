@@ -1,44 +1,12 @@
 import { AppColors } from '../common/constants/AppColors';
-import { AppStorageKeys } from '../common/constants/AppStorageKeys';
 import { RouteConstants } from '../common/constants/RouteConstants';
-import { HttpService } from '../services/HttpService';
 import { TokenStorageService } from '../services/TokenStorageService';
-import { ApiConfig } from '../common/constants/ApiConfig';
-import { AuthUser, AuthStatus } from '../models/AuthModels';
+import { AuthService } from '../services/AuthService';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'LoginPage';
 const DOMAIN = 0x0001;
-
-/**
- * 登录响应用户信息
- */
-interface LoginResponseUser {
-  id: string;
-  userName: string;
-  email: string;
-  role: string;
-  avatar?: string;
-}
-
-/**
- * 登录响应
- */
-interface LoginResponse {
-  token: string;
-  refreshToken?: string;
-  expiresAt?: string;
-  user: LoginResponseUser;
-}
-
-/**
- * 登录请求体
- */
-class LoginRequestBody {
-  email: string = '';
-  password: string = '';
-}
 
 /**
  * 登录页面 - 对应 Flutter 端 login 页面
@@ -76,46 +44,10 @@ struct LoginPage {
     this.errorMessage = '';
 
     try {
-      const httpService = HttpService.getInstance();
-      const loginBody = new LoginRequestBody();
-      loginBody.email = this.email;
-      loginBody.password = this.password;
-      const result = await httpService.post<LoginResponse>(ApiConfig.LOGIN_ENDPOINT, loginBody);
+      await AuthService.getInstance().login(this.email, this.password, this.rememberMe);
+      hilog.info(DOMAIN, TAG, '✅ 登录成功: %{public}s', this.email);
 
-      // 保存 Token
-      const tokenService = TokenStorageService.getInstance();
-      await tokenService.saveTokens(
-        result.token,
-        result.refreshToken,
-        result.expiresAt ? new Date(result.expiresAt) : undefined
-      );
-
-      // 保存用户信息
-      await tokenService.saveUserInfo(
-        result.user.id,
-        result.user.userName,
-        result.user.email,
-        result.user.role,
-      );
-
-      // 保存记住我
-      await tokenService.saveRememberMe(this.email, this.rememberMe);
-
-      // 更新全局状态
-      const user: AuthUser = {
-        id: result.user.id,
-        userName: result.user.userName,
-        email: result.user.email,
-        role: result.user.role,
-        avatar: result.user.avatar,
-      };
-      AppStorage.set(AppStorageKeys.CURRENT_USER, user);
-      AppStorage.set(AppStorageKeys.IS_AUTHENTICATED, true);
-      AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Authenticated);
-
-      hilog.info(DOMAIN, TAG, '✅ 登录成功: %{public}s', result.user.userName);
-
-      // 跳转到主页
+      // 跳转到主页（AuthService 已更新全局状态）
       router.replaceUrl({ url: `pages/${RouteConstants.MAIN}` });
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ 登录失败: %{public}s', JSON.stringify(err));

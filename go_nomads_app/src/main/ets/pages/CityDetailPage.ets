@@ -1,6 +1,5 @@
 import { City, CityHelper } from '../models/City';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { CityService } from '../services/CityService';
 import { AppColors } from '../common/constants/AppColors';
 import { RouteConstants } from '../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
@@ -18,7 +17,11 @@ const DOMAIN = 0x0001;
 struct CityDetailPage {
   @State city: City | null = null;
   @State isLoading: boolean = true;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
   @State currentTabIndex: number = 0;
+  @State isFavorited: boolean = false;
+  @State isFavoriteLoading: boolean = false;
 
   private cityId: string = '';
   private cityName: string = '';
@@ -31,21 +34,53 @@ struct CityDetailPage {
       this.cityName = params['cityName'] ?? '';
     }
     this.loadCityDetail();
+    this.checkFavoriteStatus();
   }
 
   async loadCityDetail(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const city = await httpService.get<City>(
-        `${ApiConfig.CITY_DETAIL_ENDPOINT}/${this.cityId}`
-      );
+      const cityService = CityService.getInstance();
+      const city = await cityService.getCityById(this.cityId);
       this.city = city;
       hilog.info(DOMAIN, TAG, '✅ 城市详情加载: %{public}s', city.name);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载城市详情失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err instanceof Error) ? err.message : '加载失败';
+      hilog.error(DOMAIN, TAG, '❌ 加载城市详情失败: %{public}s', this.errorMsg);
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  async checkFavoriteStatus(): Promise<void> {
+    try {
+      const cityService = CityService.getInstance();
+      this.isFavorited = await cityService.isCityFavorited(this.cityId);
+    } catch (err) {
+      hilog.warn(DOMAIN, TAG, '⚠️ 检查收藏状态失败');
+    }
+  }
+
+  async toggleFavorite(): Promise<void> {
+    if (this.isFavoriteLoading) {
+      return;
+    }
+    this.isFavoriteLoading = true;
+    try {
+      const cityService = CityService.getInstance();
+      if (this.isFavorited) {
+        await cityService.unfavoriteCity(this.cityId);
+        this.isFavorited = false;
+      } else {
+        await cityService.favoriteCity(this.cityId);
+        this.isFavorited = true;
+      }
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, '❌ 切换收藏失败: %{public}s', (err as Error).message);
+    } finally {
+      this.isFavoriteLoading = false;
     }
   }
 
@@ -61,6 +96,24 @@ struct CityDetailPage {
             .fontSize(14)
             .fontColor(AppColors.TEXT_TERTIARY)
             .margin({ top: 12 })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.hasError) {
+        Column({ space: 12 }) {
+          Text('😞').fontSize(48)
+          Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
+          Text(this.errorMsg).fontSize(13).fontColor(AppColors.TEXT_TERTIARY)
+          Button('重试')
+            .height(36)
+            .fontSize(14)
+            .borderRadius(18)
+            .backgroundColor(AppColors.PRIMARY)
+            .fontColor('#FFFFFF')
+            .onClick(() => {
+              this.loadCityDetail();
+            })
         }
         .width('100%')
         .layoutWeight(1)
@@ -118,6 +171,13 @@ struct CityDetailPage {
         .fontColor([AppColors.TEXT_PRIMARY])
         .onClick(() => {
           // TODO: 分享功能
+        })
+
+      Text(this.isFavorited ? '❤️' : '🤍')
+        .fontSize(22)
+        .margin({ left: 12 })
+        .onClick(() => {
+          this.toggleFavorite();
         })
     }
     .width('100%')

@@ -1,28 +1,12 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { TokenStorageService } from '../services/TokenStorageService';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
 import { AuthUser, AuthStatus } from '../models/AuthModels';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
+import { AuthStore } from '../state/AuthStore';
+import { AuthService } from './AuthService';
 
 const TAG = 'AppInitService';
 const DOMAIN = 0x0001;
-
-/**
- * Token 刷新响应
- */
-interface RefreshTokenResponse {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: string;
-}
-
-/**
- * Token 刷新请求体
- */
-class RefreshTokenRequest {
-  refreshToken: string = '';
-}
 
 /**
  * 应用初始化服务 - 对应 Flutter 端 app_init_service.dart
@@ -46,6 +30,9 @@ export class AppInitService {
 
     // 初始化全局状态默认值
     this.initializeAppStorage();
+
+    // 初始化认证服务（设置全局 401 回调）
+    AuthService.getInstance();
 
     // 尝试恢复登录状态
     await this.restoreAuthState();
@@ -75,18 +62,18 @@ export class AppInitService {
       const token = tokenService.getAccessToken();
       if (!token) {
         hilog.info(DOMAIN, TAG, '📱 没有保存的 Token，用户未登录');
-        AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Unauthenticated);
+        AuthStore.getInstance().setUnauthenticated();
         return;
       }
 
       // 检查 Token 是否过期
       if (tokenService.isTokenExpired()) {
         hilog.info(DOMAIN, TAG, '⏰ Token 已过期，尝试刷新...');
-        const refreshed = await this.tryRefreshToken();
+        const refreshed = await AuthService.getInstance().refreshToken();
         if (!refreshed) {
           hilog.info(DOMAIN, TAG, '❌ Token 刷新失败，清除认证');
           await tokenService.clearAll();
-          AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Unauthenticated);
+          AuthStore.getInstance().setUnauthenticated();
           return;
         }
       }
@@ -104,51 +91,15 @@ export class AppInitService {
           email: userEmail,
           role: userRole ?? 'user',
         };
-        AppStorage.set(AppStorageKeys.CURRENT_USER, user);
-        AppStorage.set(AppStorageKeys.IS_AUTHENTICATED, true);
-        AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Authenticated);
+        AuthStore.getInstance().setAuthenticated(user);
         hilog.info(DOMAIN, TAG, '✅ 登录状态恢复成功: %{public}s', userName);
       } else {
         hilog.warn(DOMAIN, TAG, '⚠️ Token 有效但用户信息不完整');
-        AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Unauthenticated);
+        AuthStore.getInstance().setUnauthenticated();
       }
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ 恢复认证状态失败: %{public}s', JSON.stringify(err));
-      AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Unauthenticated);
-    }
-  }
-
-  /**
-   * 尝试刷新 Token
-   */
-  private async tryRefreshToken(): Promise<boolean> {
-    const tokenService = TokenStorageService.getInstance();
-    const refreshToken = tokenService.getRefreshToken();
-
-    if (!refreshToken) {
-      return false;
-    }
-
-    try {
-      const httpService = HttpService.getInstance();
-      const reqBody = new RefreshTokenRequest();
-      reqBody.refreshToken = refreshToken;
-      const result = await httpService.post<RefreshTokenResponse>(
-        ApiConfig.REFRESH_TOKEN_ENDPOINT, reqBody);
-
-      if (result.accessToken) {
-        await tokenService.saveTokens(
-          result.accessToken,
-          result.refreshToken,
-          result.expiresAt ? new Date(result.expiresAt) : undefined
-        );
-        hilog.info(DOMAIN, TAG, '✅ Token 刷新成功');
-        return true;
-      }
-      return false;
-    } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ Token 刷新失败: %{public}s', JSON.stringify(err));
-      return false;
+      AuthStore.getInstance().setUnauthenticated();
     }
   }
 }

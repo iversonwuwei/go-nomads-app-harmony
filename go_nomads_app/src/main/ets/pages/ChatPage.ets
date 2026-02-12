@@ -1,29 +1,12 @@
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { ChatService, ChatMessage } from '../services/ChatService';
+import { AuthStore } from '../state/AuthStore';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'ChatPage';
 const DOMAIN = 0x0001;
-
-interface ChatMessage {
-  id: string;
-  senderId: string;
-  content: string;
-  messageType: string; // 'text' | 'image' | 'system'
-  createdAt: string;
-  isMe: boolean;
-}
-
-/**
- * 发送消息请求体
- */
-class SendMessageBody {
-  content: string = '';
-  messageType: string = 'text';
-}
 
 /**
  * 聊天页面 - 对应 Flutter 端 DirectChatPage
@@ -53,14 +36,12 @@ struct ChatPage {
   async loadMessages(): Promise<void> {
     this.isLoading = true;
     try {
-      const httpService = HttpService.getInstance();
-      const messages = await httpService.get<ChatMessage[]>(
-        `${ApiConfig.CHATS_ENDPOINT}/${this.chatId}/messages`
-      );
+      const chatService = ChatService.getInstance();
+      const messages = await chatService.getMessages(this.chatId, 1, 50);
       this.messages = messages;
       this.scrollToBottom();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载消息失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 加载消息失败: %{public}s', (err as Error).message);
     } finally {
       this.isLoading = false;
     }
@@ -71,26 +52,25 @@ struct ChatPage {
     if (!text || this.isSending) return;
 
     this.isSending = true;
+    const authUser = AuthStore.getInstance().currentUser;
     const tempMsg: ChatMessage = {
       id: `temp_${Date.now()}`,
-      senderId: 'me',
+      roomId: this.chatId,
+      senderId: authUser ? authUser.id : 'me',
+      senderName: authUser ? authUser.userName : 'Me',
       content: text,
-      messageType: 'text',
       createdAt: new Date().toISOString(),
-      isMe: true,
+      isDeleted: false,
     };
     this.messages.push(tempMsg);
     this.inputText = '';
     this.scrollToBottom();
 
     try {
-      const httpService = HttpService.getInstance();
-      const msgBody = new SendMessageBody();
-      msgBody.content = text;
-      msgBody.messageType = 'text';
-      await httpService.post<Object>(`${ApiConfig.CHATS_ENDPOINT}/${this.chatId}/messages`, msgBody);
+      const chatService = ChatService.getInstance();
+      await chatService.sendMessage(this.chatId, text);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 发送失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 发送失败: %{public}s', (err as Error).message);
     } finally {
       this.isSending = false;
     }
@@ -100,6 +80,14 @@ struct ChatPage {
     setTimeout(() => {
       this.scroller.scrollEdge(Edge.Bottom);
     }, 100);
+  }
+
+  isMyMessage(msg: ChatMessage): boolean {
+    const authUser = AuthStore.getInstance().currentUser;
+    if (authUser) {
+      return msg.senderId === authUser.id;
+    }
+    return msg.senderId === 'me';
   }
 
   build() {
@@ -170,9 +158,7 @@ struct ChatPage {
       List({ scroller: this.scroller }) {
         ForEach(this.messages, (msg: ChatMessage) => {
           ListItem() {
-            if (msg.messageType === 'system') {
-              this.SystemMessage(msg)
-            } else if (msg.isMe) {
+            if (this.isMyMessage(msg)) {
               this.SentMessage(msg)
             } else {
               this.ReceivedMessage(msg)

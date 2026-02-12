@@ -1,24 +1,13 @@
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
 import { RouteConstants } from '../common/constants/RouteConstants';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { UserService } from '../services/UserService';
 import { User } from '../models/User';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'ProfileEditPage';
 const DOMAIN = 0x0001;
-
-/**
- * 个人资料更新请求体
- */
-class ProfileUpdateBody {
-  name: string = '';
-  bio: string = '';
-  currentCity: string = '';
-  currentCountry: string = '';
-}
 
 /**
  * 个人资料编辑页 — 对应 Flutter profile_edit_page.dart
@@ -41,35 +30,36 @@ struct ProfileEditPage {
   async loadProfile(): Promise<void> {
     this.isLoading = true;
     try {
-      const httpService = HttpService.getInstance();
-      const user = await httpService.get<User>(ApiConfig.USER_ME_ENDPOINT);
+      const userService = UserService.getInstance();
+      const user = await userService.getCurrentUser();
       this.user = user;
       this.name = user.name;
       this.bio = user.bio ?? '';
       this.currentCity = user.currentCity ?? '';
       this.currentCountry = user.currentCountry ?? '';
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载个人信息失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 加载个人信息失败: %{public}s', (err as Error).message);
     } finally {
       this.isLoading = false;
     }
   }
 
   async saveProfile(): Promise<void> {
-    if (this.isSaving) return;
+    if (this.isSaving || !this.user) return;
     this.isSaving = true;
     try {
-      const httpService = HttpService.getInstance();
-      const body = new ProfileUpdateBody();
-      body.name = this.name;
-      body.bio = this.bio;
-      body.currentCity = this.currentCity;
-      body.currentCountry = this.currentCountry;
-      await httpService.put<Object>(ApiConfig.USER_ME_ENDPOINT, body);
+      const userService = UserService.getInstance();
+      const updates: Record<string, Object> = {};
+      updates['name'] = this.name;
+      updates['bio'] = this.bio;
+      updates['currentCity'] = this.currentCity;
+      updates['currentCountry'] = this.currentCountry;
+
+      await userService.updateUser(this.user.id, updates);
       hilog.info(DOMAIN, TAG, '✅ 个人信息已保存');
       router.back();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 保存失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 保存失败: %{public}s', (err as Error).message);
     } finally {
       this.isSaving = false;
     }

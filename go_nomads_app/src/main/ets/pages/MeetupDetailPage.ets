@@ -1,6 +1,5 @@
 import { Meetup, MeetupHelper, MeetupType } from '../models/Meetup';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { MeetupService } from '../services/MeetupService';
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
 import { RouteConstants } from '../common/constants/RouteConstants';
@@ -18,6 +17,8 @@ const DOMAIN = 0x0001;
 struct MeetupDetailPage {
   @State meetup: Meetup | null = null;
   @State isLoading: boolean = true;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
   @State isJoining: boolean = false;
   @StorageProp(AppStorageKeys.IS_AUTHENTICATED) isAuthenticated: boolean = false;
 
@@ -33,15 +34,16 @@ struct MeetupDetailPage {
 
   async loadMeetupDetail(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const meetup = await httpService.get<Meetup>(
-        `${ApiConfig.MEETUPS_ENDPOINT}/${this.meetupId}`
-      );
+      const meetupService = MeetupService.getInstance();
+      const meetup = await meetupService.getMeetupById(this.meetupId);
       this.meetup = meetup;
       hilog.info(DOMAIN, TAG, '✅ 聚会详情加载: %{public}s', meetup.title);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载聚会详情失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err instanceof Error) ? err.message : '加载失败';
+      hilog.error(DOMAIN, TAG, '❌ 加载聚会详情失败: %{public}s', this.errorMsg);
     } finally {
       this.isLoading = false;
     }
@@ -51,13 +53,28 @@ struct MeetupDetailPage {
     if (this.isJoining || !this.meetup) return;
     this.isJoining = true;
     try {
-      const httpService = HttpService.getInstance();
-      await httpService.post<Object>(`${ApiConfig.MEETUPS_ENDPOINT}/${this.meetupId}/join`);
+      const meetupService = MeetupService.getInstance();
+      await meetupService.joinMeetup(this.meetupId);
       // 重新加载
       await this.loadMeetupDetail();
       hilog.info(DOMAIN, TAG, '✅ 已加入聚会');
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加入聚会失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 加入聚会失败: %{public}s', (err as Error).message);
+    } finally {
+      this.isJoining = false;
+    }
+  }
+
+  async leaveMeetup(): Promise<void> {
+    if (this.isJoining || !this.meetup) return;
+    this.isJoining = true;
+    try {
+      const meetupService = MeetupService.getInstance();
+      await meetupService.leaveMeetup(this.meetupId);
+      await this.loadMeetupDetail();
+      hilog.info(DOMAIN, TAG, '✅ 已退出聚会');
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, '❌ 退出聚会失败: %{public}s', (err as Error).message);
     } finally {
       this.isJoining = false;
     }

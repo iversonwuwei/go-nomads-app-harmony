@@ -1,10 +1,9 @@
 import { AppColors } from '../../common/constants/AppColors';
 import { AppStorageKeys } from '../../common/constants/AppStorageKeys';
 import { RouteConstants } from '../../common/constants/RouteConstants';
-import { TokenStorageService } from '../../services/TokenStorageService';
-import { HttpService } from '../../services/HttpService';
-import { ApiConfig } from '../../common/constants/ApiConfig';
-import { AuthUser, AuthStatus } from '../../models/AuthModels';
+import { AuthService } from '../../services/AuthService';
+import { UserService } from '../../services/UserService';
+import { AuthUser } from '../../models/AuthModels';
 import { User, UserHelper } from '../../models/User';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -21,6 +20,7 @@ export struct ProfileTab {
   @StorageProp(AppStorageKeys.CURRENT_USER) currentUser: AuthUser | null = null;
   @State userDetail: User | null = null;
   @State isLoading: boolean = false;
+  @State hasError: boolean = false;
 
   aboutToAppear(): void {
     if (this.isAuthenticated) {
@@ -30,13 +30,15 @@ export struct ProfileTab {
 
   async loadUserProfile(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const user = await httpService.get<User>(ApiConfig.USER_ME_ENDPOINT);
+      const userService = UserService.getInstance();
+      const user = await userService.getCurrentUser();
       this.userDetail = user;
       hilog.info(DOMAIN, TAG, '✅ 用户信息加载成功');
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载用户信息失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      hilog.error(DOMAIN, TAG, '❌ 加载用户信息失败: %{public}s', (err as Error).message);
     } finally {
       this.isLoading = false;
     }
@@ -44,19 +46,11 @@ export struct ProfileTab {
 
   async logout(): Promise<void> {
     try {
-      // 调用后端登出
-      const httpService = HttpService.getInstance();
-      await httpService.post<Object>(ApiConfig.LOGOUT_ENDPOINT).catch(() => {});
-    } catch {
-      // 忽略错误
+      const authService = AuthService.getInstance();
+      await authService.logout();
+    } catch (err) {
+      hilog.warn(DOMAIN, TAG, '⚠️ 退出登录异常: %{public}s', (err as Error).message);
     }
-
-    // 清除本地数据
-    await TokenStorageService.getInstance().clearAll();
-    AppStorage.set(AppStorageKeys.IS_AUTHENTICATED, false);
-    AppStorage.set(AppStorageKeys.AUTH_STATUS, AuthStatus.Unauthenticated);
-    AppStorage.set(AppStorageKeys.CURRENT_USER, null);
-
     router.replaceUrl({ url: `pages/${RouteConstants.LOGIN}` });
   }
 

@@ -1,8 +1,7 @@
 import { AppColors } from '../../common/constants/AppColors';
 import { AppStorageKeys } from '../../common/constants/AppStorageKeys';
 import { RouteConstants } from '../../common/constants/RouteConstants';
-import { HttpService } from '../../services/HttpService';
-import { ApiConfig } from '../../common/constants/ApiConfig';
+import { ChatService, ChatRoom } from '../../services/ChatService';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -10,26 +9,15 @@ const TAG = 'ConversationListTab';
 const DOMAIN = 0x0001;
 
 /**
- * 会话信息
- */
-interface Conversation {
-  id: string;
-  type: string; // 'direct' | 'group' | 'city_chat'
-  title: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount: number;
-  avatarUrl?: string;
-  participantCount?: number;
-}
-
-/**
  * 消息/会话列表 Tab - 对应 Flutter 端 ConversationListPage
  */
 @Component
 export struct ConversationListTab {
-  @State conversations: Conversation[] = [];
+  @State conversations: ChatRoom[] = [];
   @State isLoading: boolean = true;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
+  @State isRefreshing: boolean = false;
   @StorageProp(AppStorageKeys.IS_AUTHENTICATED) isAuthenticated: boolean = false;
 
   aboutToAppear(): void {
@@ -40,15 +28,19 @@ export struct ConversationListTab {
 
   async loadConversations(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const result = await httpService.get<Conversation[]>(ApiConfig.CHATS_ENDPOINT);
-      this.conversations = result;
-      hilog.info(DOMAIN, TAG, '✅ 加载 %{public}d 个会话', result.length);
+      const chatService = ChatService.getInstance();
+      const rooms = await chatService.getChatRooms();
+      this.conversations = rooms;
+      hilog.info(DOMAIN, TAG, '✅ 加载 %{public}d 个会话', rooms.length);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载会话失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err instanceof Error) ? err.message : '加载失败';
+      hilog.error(DOMAIN, TAG, '❌ 加载会话失败: %{public}s', this.errorMsg);
     } finally {
       this.isLoading = false;
+      this.isRefreshing = false;
     }
   }
 
@@ -66,9 +58,26 @@ export struct ConversationListTab {
 
       if (!this.isAuthenticated) {
         this.LoginPrompt()
-      } else if (this.isLoading) {
+      } else if (this.isLoading && !this.isRefreshing) {
         Column() {
           LoadingProgress().width(40).height(40)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.hasError) {
+        Column({ space: 12 }) {
+          Text('😞').fontSize(48)
+          Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
+          Button('重试')
+            .height(36)
+            .fontSize(14)
+            .borderRadius(18)
+            .backgroundColor(AppColors.PRIMARY)
+            .fontColor('#FFFFFF')
+            .onClick(() => {
+              this.loadConversations();
+            })
         }
         .width('100%')
         .layoutWeight(1)
@@ -76,7 +85,13 @@ export struct ConversationListTab {
       } else if (this.conversations.length === 0) {
         this.EmptyState()
       } else {
-        this.ConversationList()
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          this.ConversationList()
+        }
+        .layoutWeight(1)
+        .onRefreshing(() => {
+          this.loadConversations();
+        })
       }
     }
     .width('100%')
@@ -125,11 +140,11 @@ export struct ConversationListTab {
   @Builder
   ConversationList() {
     List() {
-      ForEach(this.conversations, (conv: Conversation) => {
+      ForEach(this.conversations, (conv: ChatRoom) => {
         ListItem() {
           this.ConversationItem(conv)
         }
-      }, (conv: Conversation) => conv.id)
+      }, (conv: ChatRoom) => conv.id)
     }
     .layoutWeight(1)
     .divider({
@@ -141,7 +156,7 @@ export struct ConversationListTab {
   }
 
   @Builder
-  ConversationItem(conv: Conversation) {
+  ConversationItem(conv: ChatRoom) {
     Row() {
       // 头像
       Stack() {
@@ -152,7 +167,7 @@ export struct ConversationListTab {
             .borderRadius(24)
             .objectFit(ImageFit.Cover)
         } else {
-          Text(this.getConversationIcon(conv.type))
+          Text(this.getConversationIcon(conv.type ?? 'group'))
             .fontSize(24)
             .width(48)
             .height(48)
@@ -179,7 +194,7 @@ export struct ConversationListTab {
       // 内容
       Column({ space: 4 }) {
         Row() {
-          Text(conv.title)
+          Text(conv.name)
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppColors.TEXT_PRIMARY)
@@ -211,7 +226,7 @@ export struct ConversationListTab {
     .onClick(() => {
       router.pushUrl({
         url: `pages/${RouteConstants.DIRECT_CHAT}`,
-        params: { chatId: conv.id, chatTitle: conv.title },
+        params: { chatId: conv.id, chatTitle: conv.name },
       });
     })
   }

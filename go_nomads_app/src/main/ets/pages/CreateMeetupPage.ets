@@ -1,7 +1,6 @@
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { MeetupService } from '../services/MeetupService';
 import { MeetupType } from '../models/Meetup';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -20,41 +19,6 @@ class MeetupTypeOption {
     this.label = label;
     this.value = value;
   }
-}
-
-/**
- * 聚会场地信息
- */
-class MeetupVenue {
-  name: string = '';
-  address: string = '';
-}
-
-/**
- * 聚会时间信息
- */
-class MeetupSchedule {
-  startTime: string = '';
-  endTime?: string;
-}
-
-/**
- * 聚会容量信息
- */
-class MeetupCapacity {
-  max?: number;
-}
-
-/**
- * 创建聚会请求体
- */
-class CreateMeetupBody {
-  title: string = '';
-  description: string = '';
-  type: MeetupType = MeetupType.Social;
-  venue: MeetupVenue = new MeetupVenue();
-  schedule: MeetupSchedule = new MeetupSchedule();
-  capacity: MeetupCapacity = new MeetupCapacity();
 }
 
 /**
@@ -89,21 +53,24 @@ struct CreateMeetupPage {
     }
     this.isSubmitting = true;
     try {
-      const httpService = HttpService.getInstance();
-      const body = new CreateMeetupBody();
-      body.title = this.title;
-      body.description = this.description;
-      body.type = this.meetupType;
-      body.venue.name = this.venueName;
-      body.venue.address = this.venueAddress;
-      body.schedule.startTime = `${this.startDate}T${this.startTime}:00`;
-      body.schedule.endTime = this.endTime ? `${this.startDate}T${this.endTime}:00` : undefined;
-      body.capacity.max = this.maxCapacity ? parseInt(this.maxCapacity) : undefined;
-      await httpService.post<Object>(ApiConfig.MEETUPS_ENDPOINT, body);
+      const meetupService = MeetupService.getInstance();
+      const startTimeStr = `${this.startDate}T${this.startTime}:00`;
+      const endTimeStr = this.endTime ? `${this.startDate}T${this.endTime}:00` : '';
+      const maxCap = this.maxCapacity ? parseInt(this.maxCapacity) : 0;
+      await meetupService.createMeetup(
+        this.title,
+        this.description,
+        this.venueName,
+        this.venueAddress,
+        this.meetupType,
+        startTimeStr,
+        endTimeStr,
+        maxCap
+      );
       hilog.info(DOMAIN, TAG, '✅ 聚会创建成功');
       router.back();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 创建失败: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, '❌ 创建失败: %{public}s', (err as Error).message);
     } finally {
       this.isSubmitting = false;
     }

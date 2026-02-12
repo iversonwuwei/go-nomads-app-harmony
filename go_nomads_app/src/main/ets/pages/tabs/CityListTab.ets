@@ -1,6 +1,5 @@
 import { City, CityHelper } from '../../models/City';
-import { HttpService } from '../../services/HttpService';
-import { ApiConfig } from '../../common/constants/ApiConfig';
+import { CityService } from '../../services/CityService';
 import { AppColors } from '../../common/constants/AppColors';
 import { RouteConstants } from '../../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
@@ -17,11 +16,17 @@ export struct CityListTab {
   @State cities: City[] = [];
   @State filteredCities: City[] = [];
   @State isLoading: boolean = true;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
   @State searchQuery: string = '';
   @State selectedRegion: string = '全部';
   @State isGridView: boolean = true;
+  @State isRefreshing: boolean = false;
+  @State currentPage: number = 1;
+  @State hasMore: boolean = true;
 
   private regions: string[] = ['全部', 'Asia', 'Europe', 'Americas', 'Africa', 'Oceania'];
+  private pageSize: number = 30;
 
   aboutToAppear(): void {
     this.loadCities();
@@ -29,18 +34,43 @@ export struct CityListTab {
 
   async loadCities(): Promise<void> {
     this.isLoading = true;
+    this.hasError = false;
     try {
-      const httpService = HttpService.getInstance();
-      const cities = await httpService.get<City[]>(ApiConfig.CITY_LIST_ENDPOINT, {
-        queryParams: { 'pageSize': '100', 'page': '1' },
-      });
+      const cityService = CityService.getInstance();
+      const cities = await cityService.getCities(1, this.pageSize);
       this.cities = cities;
+      this.currentPage = 1;
+      this.hasMore = cities.length >= this.pageSize;
       this.applyFilter();
       hilog.info(DOMAIN, TAG, '✅ 加载 %{public}d 个城市', cities.length);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 加载城市失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err instanceof Error) ? err.message : '加载失败';
+      hilog.error(DOMAIN, TAG, '❌ 加载城市失败: %{public}s', this.errorMsg);
     } finally {
       this.isLoading = false;
+      this.isRefreshing = false;
+    }
+  }
+
+  async loadMore(): Promise<void> {
+    if (!this.hasMore || this.isLoading) {
+      return;
+    }
+    try {
+      const nextPage = this.currentPage + 1;
+      const cityService = CityService.getInstance();
+      const moreCities = await cityService.getCities(nextPage, this.pageSize);
+      if (moreCities.length > 0) {
+        this.cities = this.cities.concat(moreCities);
+        this.currentPage = nextPage;
+        this.hasMore = moreCities.length >= this.pageSize;
+        this.applyFilter();
+      } else {
+        this.hasMore = false;
+      }
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, '❌ 加载更多失败: %{public}s', (err as Error).message);
     }
   }
 
@@ -74,10 +104,28 @@ export struct CityListTab {
       this.RegionFilter()
 
       // 城市列表
-      if (this.isLoading) {
+      if (this.isLoading && !this.isRefreshing) {
         Column() {
           LoadingProgress().width(40).height(40)
           Text('加载中...').fontSize(14).fontColor(AppColors.TEXT_TERTIARY).margin({ top: 12 })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.hasError) {
+        Column({ space: 12 }) {
+          Text('😞').fontSize(48)
+          Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
+          Text(this.errorMsg).fontSize(13).fontColor(AppColors.TEXT_TERTIARY)
+          Button('重试')
+            .height(36)
+            .fontSize(14)
+            .borderRadius(18)
+            .backgroundColor(AppColors.PRIMARY)
+            .fontColor('#FFFFFF')
+            .onClick(() => {
+              this.loadCities();
+            })
         }
         .width('100%')
         .layoutWeight(1)
@@ -91,7 +139,13 @@ export struct CityListTab {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
-        this.CityGrid()
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          this.CityGrid()
+        }
+        .layoutWeight(1)
+        .onRefreshing(() => {
+          this.loadCities();
+        })
       }
     }
     .width('100%')
