@@ -11,16 +11,19 @@ const DOMAIN = 0x0001;
 
 interface LoginResponseUser {
   id: string;
-  userName: string;
+  name: string;
   email: string;
+  phone?: string;
+  avatarUrl?: string;
+  bio?: string;
   role: string;
-  avatar?: string;
 }
 
 interface LoginResponse {
-  token: string;
+  accessToken: string;
   refreshToken?: string;
-  expiresAt?: string;
+  tokenType?: string;
+  expiresIn?: number;
   user: LoginResponseUser;
 }
 
@@ -31,20 +34,21 @@ class LoginRequestBody {
 
 interface RegisterResponseUser {
   id: string;
-  userName: string;
+  name: string;
   email: string;
   role: string;
 }
 
 interface RegisterResponse {
-  token: string;
+  accessToken: string;
   refreshToken?: string;
-  expiresAt?: string;
+  tokenType?: string;
+  expiresIn?: number;
   user: RegisterResponseUser;
 }
 
 class RegisterRequestBody {
-  userName: string = '';
+  name: string = '';
   email: string = '';
   password: string = '';
 }
@@ -52,7 +56,8 @@ class RegisterRequestBody {
 interface RefreshTokenResponse {
   accessToken: string;
   refreshToken?: string;
-  expiresAt?: string;
+  tokenType?: string;
+  expiresIn?: number;
   user?: LoginResponseUser;
 }
 
@@ -62,10 +67,13 @@ class RefreshTokenRequest {
 
 interface MeResponse {
   id: string;
-  userName: string;
+  name: string;
+  userName?: string;
   email: string;
   role: string;
-  avatar?: string;
+  avatarUrl?: string;
+  bio?: string;
+  phone?: string;
 }
 
 /**
@@ -106,23 +114,37 @@ export class AuthService {
     body.password = password;
 
     const result = await this.httpService.post<LoginResponse>(ApiConfig.LOGIN_ENDPOINT, body);
+    hilog.info(DOMAIN, TAG, '📦 登录响应: accessToken=%{public}s, user.name=%{public}s',
+      result.accessToken ? 'YES' : 'NO', result.user?.name ?? 'null');
+
     const user = this.mapUser(result.user);
 
-    await this.handleAuthSuccess(result.token, result.refreshToken, result.expiresAt, user, rememberMe ? email : null);
+    // expiresIn 是秒数，转换为过期时间
+    let expiresAt: Date | undefined = undefined;
+    if (result.expiresIn) {
+      expiresAt = new Date(Date.now() + result.expiresIn * 1000);
+    }
+
+    await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, rememberMe ? email : null);
     hilog.info(DOMAIN, TAG, '✅ 登录成功: %{public}s', user.userName);
     return user;
   }
 
   async register(userName: string, email: string, password: string): Promise<AuthUser> {
     const body = new RegisterRequestBody();
-    body.userName = userName;
+    body.name = userName;
     body.email = email;
     body.password = password;
 
     const result = await this.httpService.post<RegisterResponse>(ApiConfig.REGISTER_ENDPOINT, body);
     const user = this.mapUser(result.user);
 
-    await this.handleAuthSuccess(result.token, result.refreshToken, result.expiresAt, user, null);
+    let expiresAt: Date | undefined = undefined;
+    if (result.expiresIn) {
+      expiresAt = new Date(Date.now() + result.expiresIn * 1000);
+    }
+
+    await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, null);
     hilog.info(DOMAIN, TAG, '✅ 注册成功: %{public}s', user.userName);
     return user;
   }
@@ -153,7 +175,13 @@ export class AuthService {
     try {
       const result = await this.httpService.post<RefreshTokenResponse>(ApiConfig.REFRESH_TOKEN_ENDPOINT, body);
       const user = result.user ? this.mapUser(result.user) : this.store.currentUser;
-      await this.handleAuthSuccess(result.accessToken, result.refreshToken, result.expiresAt, user, null);
+
+      let expiresAt: Date | undefined = undefined;
+      if (result.expiresIn) {
+        expiresAt = new Date(Date.now() + result.expiresIn * 1000);
+      }
+
+      await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, null);
       hilog.info(DOMAIN, TAG, '✅ Token 刷新成功');
       return true;
     } catch (err) {
@@ -182,14 +210,14 @@ export class AuthService {
   private async handleAuthSuccess(
     accessToken: string,
     refreshToken: string | undefined,
-    expiresAt: string | undefined,
+    expiresAt: Date | undefined,
     user: AuthUser | null,
     rememberEmail: string | null
   ): Promise<void> {
     await this.tokenService.saveTokens(
       accessToken,
       refreshToken,
-      expiresAt ? new Date(expiresAt) : undefined
+      expiresAt
     );
 
     if (user) {
@@ -210,14 +238,19 @@ export class AuthService {
   }
 
   private mapUser(user: LoginResponseUser | RegisterResponseUser | MeResponse): AuthUser {
+    // 后端返回 name 字段，需兼容 userName
+    const userName = (user as LoginResponseUser).name ??
+      (user as MeResponse).userName ?? '';
+    const avatarUrl = (user as LoginResponseUser).avatarUrl ?? undefined;
+
     const mapped: AuthUser = {
       id: user.id,
-      userName: user.userName,
+      userName: userName,
       email: user.email,
       role: user.role,
     };
-    if ((user as LoginResponseUser).avatar !== undefined) {
-      mapped.avatar = (user as LoginResponseUser).avatar;
+    if (avatarUrl) {
+      mapped.avatar = avatarUrl;
     }
     return mapped;
   }
