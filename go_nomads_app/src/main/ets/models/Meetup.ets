@@ -4,6 +4,7 @@
 export enum MeetupStatus {
   Draft = 'draft',
   Published = 'published',
+  Upcoming = 'upcoming',
   Cancelled = 'cancelled',
   Completed = 'completed',
 }
@@ -22,61 +23,60 @@ export enum MeetupType {
 }
 
 /**
- * 聚会组织者
+ * 城市信息（后端 CityInfo）
  */
-export interface MeetupOrganizer {
+export interface MeetupCityInfo {
   id: string;
   name: string;
-  avatar?: string;
+  country: string;
+  region?: string;
+  imageUrl?: string;
+  timeZone?: string;
 }
 
 /**
- * 聚会地点
+ * 组织者信息（后端 OrganizerInfo）
  */
-export interface MeetupVenue {
+export interface MeetupOrganizerInfo {
+  id: string;
   name: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
+  email: string;
+  avatarUrl?: string;
 }
 
 /**
- * 聚会时间
- */
-export interface MeetupSchedule {
-  startTime: string;
-  endTime?: string;
-}
-
-/**
- * 聚会容量
- */
-export interface MeetupCapacity {
-  min?: number;
-  max?: number;
-  current: number;
-}
-
-/**
- * 聚会实体 - 对应 Flutter 端 Meetup domain entity
+ * 聚会实体 - 对应后端 EventResponse DTO
  */
 export interface Meetup {
   id: string;
   title: string;
-  type: MeetupType;
-  description: string;
+  description?: string;
+  organizerId: string;
   cityId?: string;
-  cityName?: string;
-  venue: MeetupVenue;
-  schedule: MeetupSchedule;
-  capacity: MeetupCapacity;
-  organizer: MeetupOrganizer;
-  images: string[];
-  attendeeIds: string[];
-  status: MeetupStatus;
+  location?: string;
+  address?: string;
+  imageUrl?: string;
+  images?: string[];
+  category?: string;
+  startTime: string;
+  endTime?: string;
+  maxParticipants?: number;
+  participantCount: number;
+  status: string;
+  locationType: string;
+  meetingLink?: string;
+  latitude?: number;
+  longitude?: number;
+  tags?: string[];
+  isFeatured: boolean;
   createdAt: string;
-  isJoined?: boolean;
-  isOrganizer?: boolean;
+  updatedAt: string;
+  isFollowing: boolean;
+  isParticipant: boolean;
+  isOrganizer: boolean;
+  followerCount: number;
+  city?: MeetupCityInfo;
+  organizer?: MeetupOrganizerInfo;
 }
 
 /**
@@ -85,30 +85,32 @@ export interface Meetup {
 export class MeetupHelper {
   /** 是否即将开始（24小时内） */
   static isStartingSoon(meetup: Meetup): boolean {
+    if (!meetup.startTime) return false;
     const now = new Date();
-    const start = new Date(meetup.schedule.startTime);
+    const start = new Date(meetup.startTime);
     const diffHours = (start.getTime() - now.getTime()) / (1000 * 60 * 60);
     return diffHours > 0 && diffHours <= 24;
   }
 
   /** 是否已结束 */
   static isEnded(meetup: Meetup): boolean {
-    if (meetup.status === MeetupStatus.Completed) return true;
-    return new Date(meetup.schedule.startTime) < new Date();
+    if (meetup.status === MeetupStatus.Completed || meetup.status === 'completed') return true;
+    if (!meetup.startTime) return false;
+    return new Date(meetup.startTime) < new Date();
   }
 
   /** 是否正在进行 */
   static isOngoing(meetup: Meetup): boolean {
+    if (!meetup.startTime || !meetup.endTime) return false;
     const now = new Date();
-    const start = new Date(meetup.schedule.startTime);
-    if (!meetup.schedule.endTime) return false;
-    const end = new Date(meetup.schedule.endTime);
+    const start = new Date(meetup.startTime);
+    const end = new Date(meetup.endTime);
     return now > start && now < end;
   }
 
   /** 是否已满员 */
   static isFull(meetup: Meetup): boolean {
-    return meetup.capacity.max !== undefined && meetup.capacity.current >= meetup.capacity.max;
+    return meetup.maxParticipants !== undefined && meetup.participantCount >= meetup.maxParticipants;
   }
 
   /** 可否加入 */
@@ -116,7 +118,12 @@ export class MeetupHelper {
     if (MeetupHelper.isEnded(meetup) || MeetupHelper.isOngoing(meetup)) return false;
     if (MeetupHelper.isFull(meetup)) return false;
     if (meetup.isOrganizer) return false;
-    if (meetup.isJoined) return false;
+    if (meetup.isParticipant) return false;
     return true;
+  }
+
+  /** 获取显示地点名称 */
+  static displayLocation(meetup: Meetup): string {
+    return meetup.location || meetup.city?.name || '未知地点';
   }
 }

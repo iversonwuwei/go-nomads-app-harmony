@@ -8,6 +8,16 @@ import { AppStorageKeys } from '../../common/constants/AppStorageKeys';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
+/**
+ * 后端分页响应结构
+ */
+interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 const TAG = 'HomeTab';
 const DOMAIN = 0x0001;
 
@@ -39,18 +49,32 @@ export struct HomeTab {
     this.isLoading = true;
     try {
       const httpService = HttpService.getInstance();
-      const citiesPromise = httpService.get<City[]>(ApiConfig.CITY_LIST_ENDPOINT, {
-        queryParams: { 'pageSize': '12', 'page': '1' },
+      // 后端返回 PaginatedResponse 分页包装，需要解包 items
+      const citiesPromise = httpService.get<PaginatedResponse<City>>(ApiConfig.CITY_LIST_ENDPOINT, {
+        queryParams: { 'pageSize': '12', 'pageNumber': '1' },
       });
-      const meetupsPromise = httpService.get<Meetup[]>(ApiConfig.MEETUPS_ENDPOINT, {
-        queryParams: { 'pageSize': '5', 'status': 'published' },
+      const meetupsPromise = httpService.get<PaginatedResponse<Meetup>>(ApiConfig.EVENTS_ENDPOINT, {
+        queryParams: { 'pageSize': '5', 'status': 'upcoming' },
       });
       const results = await Promise.all<Object>([
         citiesPromise.catch((): City[] => []),
         meetupsPromise.catch((): Meetup[] => []),
       ]);
-      this.cities = results[0] as City[];
-      this.meetups = results[1] as Meetup[];
+      // 从分页响应中提取 items，兼容 catch 返回空数组的情况
+      const citiesResult = results[0];
+      if (Array.isArray(citiesResult)) {
+        this.cities = citiesResult as City[];
+      } else {
+        const paged = citiesResult as PaginatedResponse<City>;
+        this.cities = paged.items ?? [];
+      }
+      const meetupsResult = results[1];
+      if (Array.isArray(meetupsResult)) {
+        this.meetups = meetupsResult as Meetup[];
+      } else {
+        const paged = meetupsResult as PaginatedResponse<Meetup>;
+        this.meetups = paged.items ?? [];
+      }
       hilog.info(DOMAIN, TAG, '✅ 首页数据加载完成: %{public}d 城市, %{public}d 聚会',
         this.cities.length, this.meetups.length);
     } catch (err) {
@@ -468,11 +492,13 @@ export struct HomeTab {
     Column() {
       // 日期
       Row({ space: 8 }) {
-        Text(new Date(meetup.schedule.startTime).getDate().toString())
+        Text(meetup.startTime ? new Date(meetup.startTime).getDate().toString() : '-')
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.PRIMARY)
-        Text(new Date(meetup.schedule.startTime).toLocaleDateString('zh-CN', { month: 'short' }))
+        Text(meetup.startTime
+          ? new Date(meetup.startTime).toLocaleDateString('zh-CN', { month: 'short' })
+          : '')
           .fontSize(13)
           .fontColor(AppColors.TEXT_SECONDARY)
       }
@@ -485,7 +511,7 @@ export struct HomeTab {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .margin({ top: 8 })
 
-      Text(meetup.venue.name)
+      Text(MeetupHelper.displayLocation(meetup))
         .fontSize(13)
         .fontColor(AppColors.TEXT_SECONDARY)
         .maxLines(1)
@@ -494,7 +520,7 @@ export struct HomeTab {
       Blank()
 
       Row({ space: 8 }) {
-        Text(`👥 ${meetup.capacity.current}${meetup.capacity.max ? '/' + meetup.capacity.max : ''}`)
+        Text(`👥 ${meetup.participantCount ?? 0}${meetup.maxParticipants ? '/' + meetup.maxParticipants : ''}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
 

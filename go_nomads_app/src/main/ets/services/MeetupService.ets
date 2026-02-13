@@ -1,6 +1,6 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ApiConfig } from '../common/constants/ApiConfig';
-import { Meetup, MeetupType } from '../models/Meetup';
+import { Meetup, MeetupType, MeetupOrganizerInfo, MeetupCityInfo } from '../models/Meetup';
 import { HttpService, RequestOptions } from './HttpService';
 
 const TAG = 'MeetupService';
@@ -301,55 +301,63 @@ export class MeetupService {
   }
 
   private parseMeetup(json: Record<string, Object>): Meetup {
+    // 解析组织者信息
+    let organizerInfo: MeetupOrganizerInfo | undefined = undefined;
+    const rawOrganizer = json['organizer'] as Record<string, Object> | undefined;
+    if (rawOrganizer) {
+      organizerInfo = {
+        id: (rawOrganizer['id'] as string) ?? '',
+        name: (rawOrganizer['userName'] as string) ?? (rawOrganizer['name'] as string) ?? '',
+        email: (rawOrganizer['email'] as string) ?? '',
+        avatarUrl: rawOrganizer['avatarUrl'] as string | undefined,
+      } as MeetupOrganizerInfo;
+    }
+
+    // 解析城市信息
+    let cityInfo: MeetupCityInfo | undefined = undefined;
+    const rawCity = json['city'] as Record<string, Object> | undefined;
+    if (rawCity) {
+      cityInfo = {
+        id: (rawCity['id'] as string) ?? '',
+        name: (rawCity['name'] as string) ?? '',
+        country: (rawCity['country'] as string) ?? '',
+        region: rawCity['region'] as string | undefined,
+        imageUrl: rawCity['imageUrl'] as string | undefined,
+        timeZone: rawCity['timeZone'] as string | undefined,
+      } as MeetupCityInfo;
+    }
+
     return {
       id: (json['id'] as string) ?? '',
       title: (json['title'] as string) ?? '',
-      type: this.parseMeetupType(json['category'] as string),
-      description: (json['description'] as string) ?? '',
+      description: json['description'] as string | undefined,
+      organizerId: (json['organizerId'] as string) ?? '',
       cityId: json['cityId'] as string | undefined,
-      cityName: json['cityName'] as string | undefined,
-      venue: {
-        name: (json['location'] as string) ?? '',
-        address: json['address'] as string | undefined,
-        latitude: json['latitude'] as number | undefined,
-        longitude: json['longitude'] as number | undefined,
-      },
-      schedule: {
-        startTime: (json['startTime'] as string) ?? new Date().toISOString(),
-        endTime: json['endTime'] as string | undefined,
-      },
-      capacity: {
-        max: json['maxParticipants'] as number | undefined,
-        current: (json['participantCount'] as number) ?? 0,
-      },
-      organizer: {
-        id: (json['organizerId'] as string) ?? '',
-        name: this.parseOrganizerName(json),
-        avatar: this.parseOrganizerAvatar(json),
-      },
+      location: json['location'] as string | undefined,
+      address: json['address'] as string | undefined,
+      imageUrl: json['imageUrl'] as string | undefined,
       images: this.parseStringArray(json['images'] as Object),
-      attendeeIds: this.parseStringArray(json['attendeeIds'] as Object),
+      category: json['category'] as string | undefined,
+      startTime: (json['startTime'] as string) ?? new Date().toISOString(),
+      endTime: json['endTime'] as string | undefined,
+      maxParticipants: json['maxParticipants'] as number | undefined,
+      participantCount: (json['participantCount'] as number) ?? 0,
       status: this.parseMeetupStatus(json['status'] as string),
+      locationType: (json['locationType'] as string) ?? 'physical',
+      meetingLink: json['meetingLink'] as string | undefined,
+      latitude: json['latitude'] as number | undefined,
+      longitude: json['longitude'] as number | undefined,
+      tags: this.parseStringArray(json['tags'] as Object),
+      isFeatured: (json['isFeatured'] as boolean) ?? false,
       createdAt: (json['createdAt'] as string) ?? '',
-      isJoined: json['isParticipant'] as boolean | undefined,
-      isOrganizer: json['isOrganizer'] as boolean | undefined,
+      updatedAt: (json['updatedAt'] as string) ?? '',
+      isFollowing: (json['isFollowing'] as boolean) ?? false,
+      isParticipant: (json['isParticipant'] as boolean) ?? false,
+      isOrganizer: (json['isOrganizer'] as boolean) ?? false,
+      followerCount: (json['followerCount'] as number) ?? 0,
+      city: cityInfo,
+      organizer: organizerInfo,
     } as Meetup;
-  }
-
-  private parseOrganizerName(json: Record<string, Object>): string {
-    const organizer = json['organizer'] as Record<string, Object> | undefined;
-    if (organizer) {
-      return (organizer['userName'] as string) ?? (organizer['name'] as string) ?? '';
-    }
-    return '';
-  }
-
-  private parseOrganizerAvatar(json: Record<string, Object>): string | undefined {
-    const organizer = json['organizer'] as Record<string, Object> | undefined;
-    if (organizer) {
-      return organizer['avatar'] as string | undefined;
-    }
-    return undefined;
   }
 
   private parseMeetupType(category: string | undefined): MeetupType {

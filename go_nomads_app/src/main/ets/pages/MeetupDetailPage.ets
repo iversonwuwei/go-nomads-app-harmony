@@ -1,4 +1,4 @@
-import { Meetup, MeetupHelper, MeetupType } from '../models/Meetup';
+import { Meetup, MeetupHelper } from '../models/Meetup';
 import { MeetupService } from '../services/MeetupService';
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
@@ -155,8 +155,13 @@ struct MeetupDetailPage {
 
   @Builder
   CoverSection() {
-    if (this.meetup!.images.length > 0) {
-      Image(this.meetup!.images[0])
+    if (this.meetup!.images && this.meetup!.images!.length > 0) {
+      Image(this.meetup!.images![0])
+        .width('100%')
+        .height(200)
+        .objectFit(ImageFit.Cover)
+    } else if (this.meetup!.imageUrl) {
+      Image(this.meetup!.imageUrl!)
         .width('100%')
         .height(200)
         .objectFit(ImageFit.Cover)
@@ -174,7 +179,7 @@ struct MeetupDetailPage {
 
       // 状态标签
       Row({ space: 8 }) {
-        Text(this.getMeetupTypeLabel(this.meetup!.type))
+        Text(this.getMeetupCategoryLabel(this.meetup!.category))
           .fontSize(12)
           .fontColor(AppColors.PRIMARY)
           .backgroundColor('#0891B214')
@@ -204,7 +209,7 @@ struct MeetupDetailPage {
         Text('📅')
           .fontSize(18)
         Column({ space: 2 }) {
-          Text(new Date(this.meetup!.schedule.startTime).toLocaleDateString('zh-CN', {
+          Text(new Date(this.meetup!.startTime).toLocaleDateString('zh-CN', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -212,13 +217,13 @@ struct MeetupDetailPage {
           }))
             .fontSize(14)
             .fontColor(AppColors.TEXT_PRIMARY)
-          Text(`${new Date(this.meetup!.schedule.startTime).toLocaleTimeString('zh-CN', {
+          Text(`${new Date(this.meetup!.startTime).toLocaleTimeString('zh-CN', {
             hour: '2-digit',
             minute: '2-digit',
-          })} - ${new Date(this.meetup!.schedule.endTime).toLocaleTimeString('zh-CN', {
+          })}${this.meetup!.endTime ? ' - ' + new Date(this.meetup!.endTime!).toLocaleTimeString('zh-CN', {
             hour: '2-digit',
             minute: '2-digit',
-          })}`)
+          }) : ''}`)
             .fontSize(13)
             .fontColor(AppColors.TEXT_SECONDARY)
         }
@@ -228,7 +233,7 @@ struct MeetupDetailPage {
       Row({ space: 8 }) {
         Text('👤')
           .fontSize(18)
-        Text(`组织者：${this.meetup!.organizer.name}`)
+        Text(`组织者：${this.meetup!.organizer?.name ?? '未知'}`)
           .fontSize(14)
           .fontColor(AppColors.TEXT_SECONDARY)
       }
@@ -268,12 +273,12 @@ struct MeetupDetailPage {
 
       Row() {
         Column({ space: 4 }) {
-          Text(this.meetup!.venue.name)
+          Text(this.meetup!.location ?? this.meetup!.city?.name ?? '未指定地点')
             .fontSize(15)
             .fontColor(AppColors.TEXT_PRIMARY)
 
-          if (this.meetup!.venue.address) {
-            Text(this.meetup!.venue.address!)
+          if (this.meetup!.address) {
+            Text(this.meetup!.address!)
               .fontSize(13)
               .fontColor(AppColors.TEXT_SECONDARY)
           }
@@ -303,22 +308,22 @@ struct MeetupDetailPage {
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.TEXT_PRIMARY)
         Blank()
-        Text(`${this.meetup!.capacity.current}${this.meetup!.capacity.max ? '/' + this.meetup!.capacity.max : ''} 人`)
+        Text(`${this.meetup!.participantCount}${this.meetup!.maxParticipants ? '/' + this.meetup!.maxParticipants : ''} 人`)
           .fontSize(14)
           .fontColor(AppColors.TEXT_SECONDARY)
       }
       .width('100%')
 
       // 容量进度条
-      if (this.meetup!.capacity.max) {
+      if (this.meetup!.maxParticipants) {
         Progress({
-          value: this.meetup!.capacity.current,
-          total: this.meetup!.capacity.max,
+          value: this.meetup!.participantCount,
+          total: this.meetup!.maxParticipants!,
           type: ProgressType.Linear,
         })
           .width('100%')
           .style({ strokeWidth: 8 })
-          .color(this.meetup!.capacity.current >= this.meetup!.capacity.max! ? AppColors.ERROR : AppColors.PRIMARY)
+          .color(this.meetup!.participantCount >= this.meetup!.maxParticipants! ? AppColors.ERROR : AppColors.PRIMARY)
           .backgroundColor('#E2E8F0')
       }
     }
@@ -331,7 +336,7 @@ struct MeetupDetailPage {
   BottomActionBar() {
     Row() {
       // 参加/已参加按钮
-      if (this.meetup!.isJoined) {
+      if (this.meetup!.isParticipant) {
         Button('已参加 ✓')
           .layoutWeight(1)
           .height(48)
@@ -372,14 +377,15 @@ struct MeetupDetailPage {
     .shadow({ radius: 8, color: '#00000010', offsetX: 0, offsetY: -2 })
   }
 
-  getMeetupTypeLabel(type: MeetupType): string {
-    switch (type) {
-      case MeetupType.Social: return '社交';
-      case MeetupType.Coworking: return '共同办公';
-      case MeetupType.Workshop: return '工作坊';
-      case MeetupType.Sports: return '运动';
-      case MeetupType.Cultural: return '文化';
-      case MeetupType.Networking: return '社交联络';
+  getMeetupCategoryLabel(category: string | undefined): string {
+    if (!category) return '其他';
+    switch (category.toLowerCase()) {
+      case 'social': return '社交';
+      case 'coworking': return '共同办公';
+      case 'workshop': return '工作坊';
+      case 'sports': return '运动';
+      case 'cultural': return '文化';
+      case 'networking': return '社交联络';
       default: return '其他';
     }
   }
