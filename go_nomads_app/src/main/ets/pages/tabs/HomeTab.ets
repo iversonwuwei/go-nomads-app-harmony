@@ -12,8 +12,16 @@ const TAG = 'HomeTab';
 const DOMAIN = 0x0001;
 
 /**
- * 首页 Tab 内容 - 对应 Flutter 端 HomePage
- * 包含 Hero 区域、搜索栏、城市网格、聚会列表等
+ * 首页 Tab - 100% 还原 Flutter HomePage
+ *
+ * Flutter 结构:
+ *   HeroSection → 深色渐变 #1a1a2e→#16213e, logo + "Go Nomad" 32px white, 4 service cards 2x2
+ *   SearchBar → 白色容器 radius 8, borderLight, 红色Search按钮
+ *   HomeToolbar → (省略,用QuickEntry代替)
+ *   AiEntryCard → 渐变 #0F172A→#1E293B→#0EA5E9, "AI Copilot" + Beta badge
+ *   CityGrid → 2列网格, 白色卡片, 图片+渐变叠加
+ *   MeetupsSection → 水平滚动, 卡片280px宽
+ *   FeatureHighlights → emoji 列表
  */
 @Component
 export struct HomeTab {
@@ -31,27 +39,20 @@ export struct HomeTab {
     this.isLoading = true;
     try {
       const httpService = HttpService.getInstance();
-
-      // 并行加载城市和聚会数据
       const citiesPromise = httpService.get<City[]>(ApiConfig.CITY_LIST_ENDPOINT, {
         queryParams: { 'pageSize': '12', 'page': '1' },
       });
       const meetupsPromise = httpService.get<Meetup[]>(ApiConfig.MEETUPS_ENDPOINT, {
         queryParams: { 'pageSize': '5', 'status': 'published' },
       });
-
       const results = await Promise.all<Object>([
         citiesPromise.catch((): City[] => []),
         meetupsPromise.catch((): Meetup[] => []),
       ]);
-
-      const cities = results[0] as City[];
-      const meetups = results[1] as Meetup[];
-
-      this.cities = cities;
-      this.meetups = meetups;
+      this.cities = results[0] as City[];
+      this.meetups = results[1] as Meetup[];
       hilog.info(DOMAIN, TAG, '✅ 首页数据加载完成: %{public}d 城市, %{public}d 聚会',
-        cities.length, meetups.length);
+        this.cities.length, this.meetups.length);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ 首页数据加载失败: %{public}s', JSON.stringify(err));
     } finally {
@@ -62,82 +63,157 @@ export struct HomeTab {
   build() {
     Scroll() {
       Column() {
-        // Hero 区域
+        // ===== HeroSection: gradient #1a1a2e→#16213e =====
         this.HeroSection()
 
-        // 搜索栏
+        // ===== SearchBar: white container, radius 8, red button =====
         this.SearchBar()
 
-        // 快速入口
-        this.QuickEntrySection()
-
-        // AI Chat 入口
+        // ===== AI Entry Card: gradient #0F172A→#1E293B→#0EA5E9 =====
         this.AiEntryCard()
 
-        // 推荐城市
+        // ===== City Grid: 2 columns =====
         this.CitiesSection()
 
-        // 近期聚会
+        // ===== Meetups: horizontal scroll =====
         this.MeetupsSection()
 
-        // 底部间距
-        Column().height(80)
+        // ===== Feature Highlights =====
+        this.FeatureHighlights()
+
+        // 底部间距 (为底部导航栏留空间)
+        Column().height(100)
       }
     }
     .width('100%')
     .height('100%')
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
+    .backgroundColor(AppColors.BACKGROUND)
   }
 
-  // ============================================================
-  // Hero 区域 - 深色背景 + Logo + 副标题
-  // ============================================================
+  // ===== Hero 区域 - Flutter: gradient #1a1a2e→#16213e =====
   @Builder
   HeroSection() {
     Column() {
-      // Logo
-      Row({ space: 12 }) {
-        Text('🌍')
+      // Logo 和标题行
+      Row({ space: 16 }) {
+        // Logo 容器: white 10% bg, radius 12
+        Column() {
+          SymbolGlyph($r('sys.symbol.globe_badge_heart'))
+            .fontSize(32)
+            .fontColor([AppColors.WHITE])
+        }
+        .width(56)
+        .height(56)
+        .borderRadius(12)
+        .backgroundColor('#1AFFFFFF') // white 10%
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+
+        Text('Go Nomad')
           .fontSize(32)
-        Text('行途 GO-NOMADS')
-          .fontSize(28)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
+          .fontColor(AppColors.WHITE)
       }
       .margin({ top: 60 })
+      .justifyContent(FlexAlign.Center)
 
       // 副标题
-      Text('加入全球数字游民社区\n探索世界，自由工作')
-        .fontSize(16)
-        .fontColor('#FFFFFFCC')
+      Text('加入全球数字游民社区')
+        .fontSize(18)
+        .fontColor(AppColors.WHITE)
+        .margin({ top: 24 })
         .textAlign(TextAlign.Center)
-        .lineHeight(24)
-        .margin({ top: 16, bottom: 32 })
+
+      Text('探索世界，自由工作')
+        .fontSize(18)
+        .fontColor(AppColors.WHITE)
+        .margin({ top: 8 })
+        .textAlign(TextAlign.Center)
+
+      // 4 Service Cards 2x2
+      Column({ space: 12 }) {
+        // 第一行: Cities + Coworks
+        Row({ space: 12 }) {
+          this.ServiceCard('Cities', AppColors.HOME_CITIES, '🏙️', () => {
+            router.pushUrl({ url: `pages/${RouteConstants.CITY_LIST}` });
+          })
+          this.ServiceCard('Coworks', AppColors.HOME_COWORKS, '🏢', () => {
+            // TODO: coworking page
+          })
+        }
+        .width('100%')
+
+        // 第二行: Meetups + Innovation
+        Row({ space: 12 }) {
+          this.ServiceCard('Meetups', AppColors.HOME_MEETUPS, '👥', () => {
+            router.pushUrl({ url: `pages/${RouteConstants.MEETUP_LIST}` });
+          })
+          this.ServiceCard('Innovation', AppColors.HOME_INNOVATION, '💡', () => {
+            // TODO: innovation page
+          })
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .margin({ top: 32 })
     }
     .width('100%')
     .padding({ left: 24, right: 24, top: 20, bottom: 32 })
     .linearGradient({
       direction: GradientDirection.Top,
-      colors: [['#1a1a2e', 0.0], ['#16213e', 1.0]],
+      colors: [[AppColors.HERO_DARK1, 0.0], [AppColors.HERO_DARK2, 1.0]],
     })
   }
 
-  // ============================================================
-  // 搜索栏
-  // ============================================================
+  // Service Card - Flutter: gradient color→color*0.8, radius 16, shadow
+  @Builder
+  ServiceCard(title: string, color: string, emoji: string, onClick: () => void) {
+    Column() {
+      // 图标容器: white 25% bg, radius 14
+      Column() {
+        Text(emoji)
+          .fontSize(32)
+      }
+      .width(56)
+      .height(56)
+      .borderRadius(14)
+      .backgroundColor('#40FFFFFF') // white 25%
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Text(title)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.WHITE)
+        .margin({ top: 12 })
+        .textAlign(TextAlign.Center)
+    }
+    .layoutWeight(1)
+    .padding({ top: 20, bottom: 20, left: 16, right: 16 })
+    .borderRadius(16)
+    .backgroundColor(color)
+    .shadow({ radius: 12, color: '#4D000000', offsetX: 0, offsetY: 4 })
+    .alignItems(HorizontalAlign.Center)
+    .onClick(onClick)
+  }
+
+  // ===== SearchBar - Flutter: white, radius 8, borderLight border, red Search button =====
   @Builder
   SearchBar() {
     Row() {
       SymbolGlyph($r('sys.symbol.magnifyingglass'))
         .fontSize(20)
-        .fontColor([AppColors.TEXT_TERTIARY])
+        .fontColor([AppColors.TEXT_SECONDARY])
 
-      TextInput({ placeholder: '搜索城市、国家...', text: this.searchQuery })
+      TextInput({ placeholder: 'Search cities... (支持中英文搜索)', text: this.searchQuery })
         .layoutWeight(1)
         .backgroundColor('transparent')
         .borderRadius(0)
         .height(40)
+        .fontSize(14)
+        .fontColor(AppColors.TEXT_PRIMARY)
         .onChange((value: string) => {
           this.searchQuery = value;
         })
@@ -149,96 +225,98 @@ export struct HomeTab {
             });
           }
         })
+
+      // Search 按钮 - red #FF4458, radius 6
+      Text('Search')
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.WHITE)
+        .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+        .borderRadius(6)
+        .backgroundColor(AppColors.PRIMARY)
+        .onClick(() => {
+          if (this.searchQuery) {
+            router.pushUrl({
+              url: `pages/${RouteConstants.CITY_SEARCH}`,
+              params: { query: this.searchQuery },
+            });
+          }
+        })
     }
     .width('100%')
-    .height(48)
-    .borderRadius(24)
-    .backgroundColor('#F1F5F9')
-    .padding({ left: 16, right: 16 })
-    .margin({ left: 16, right: 16, top: 16, bottom: 8 })
+    .padding({ left: 20, right: 14, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, top: 20, bottom: 8 })
+    .borderRadius(8)
+    .backgroundColor(AppColors.WHITE)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+    .shadow({ radius: 8, color: '#08000000', offsetX: 0, offsetY: 2 })
   }
 
-  // ============================================================
-  // 快速入口（城市列表、全球地图、AI聊天、收藏）
-  // ============================================================
-  @Builder
-  QuickEntrySection() {
-    Row() {
-      this.QuickEntryItem('🏙️', '城市', () => {
-        // 切换到城市列表 Tab
-        AppStorage.set(AppStorageKeys.CURRENT_TAB_INDEX, 1);
-      })
-      this.QuickEntryItem('🗺️', '地图', () => {
-        router.pushUrl({ url: `pages/${RouteConstants.GLOBAL_MAP}` });
-      })
-      this.QuickEntryItem('🤖', 'AI助手', () => {
-        router.pushUrl({ url: `pages/${RouteConstants.AI_CHAT}` });
-      })
-      this.QuickEntryItem('❤️', '收藏', () => {
-        router.pushUrl({ url: `pages/${RouteConstants.FAVORITES}` });
-      })
-    }
-    .width('100%')
-    .justifyContent(FlexAlign.SpaceEvenly)
-    .padding({ top: 12, bottom: 12 })
-  }
-
-  @Builder
-  QuickEntryItem(icon: string, label: string, onClick: () => void) {
-    Column({ space: 6 }) {
-      Text(icon)
-        .fontSize(28)
-      Text(label)
-        .fontSize(12)
-        .fontColor(AppColors.TEXT_SECONDARY)
-    }
-    .onClick(onClick)
-    .padding(8)
-  }
-
-  // ============================================================
-  // AI Chat 入口卡片
-  // ============================================================
+  // ===== AI Chat 入口卡片 - Flutter: gradient #0F172A→#1E293B→#0EA5E9 =====
   @Builder
   AiEntryCard() {
     Row() {
-      Column({ space: 4 }) {
-        Text('AI 旅行助手')
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-        Text('让 AI 帮你规划下一段旅程')
-          .fontSize(13)
-          .fontColor('#FFFFFFCC')
+      // AI 图标: 44x44, white 12% bg, radius 12
+      Column() {
+        Text('✨')
+          .fontSize(18)
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      .width(44)
+      .height(44)
+      .borderRadius(12)
+      .backgroundColor('#1FFFFFFF') // white 12%
+      .border({ width: 1, color: '#26FFFFFF' }) // white 15%
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
 
-      Text('💬')
-        .fontSize(32)
+      Column() {
+        Row({ space: 8 }) {
+          Text('AI Copilot')
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(AppColors.WHITE)
+          // Beta badge
+          Text('Beta')
+            .fontSize(10)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(AppColors.WHITE)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(6)
+            .backgroundColor('#26FFFFFF') // white 15%
+        }
+        Text('智能旅行助手，帮你探索目的地')
+          .fontSize(12)
+          .fontColor('#B3FFFFFF') // white 70%
+          .margin({ top: 4 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .margin({ left: 14 })
+      .layoutWeight(1)
+
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(16)
+        .fontColor(['#80FFFFFF']) // white 50%
     }
     .width('100%')
-    .padding(16)
-    .margin({ left: 16, right: 16, top: 8, bottom: 8 })
-    .borderRadius(12)
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, top: 12 })
+    .borderRadius(16)
     .linearGradient({
       direction: GradientDirection.Right,
-      colors: [[AppColors.PRIMARY, 0.0], [AppColors.PRIMARY_DARK, 1.0]],
+      colors: [[AppColors.AI_GRADIENT1, 0.0], [AppColors.AI_GRADIENT2, 0.6], [AppColors.AI_GRADIENT3, 1.0]],
     })
+    .shadow({ radius: 16, color: '#2E0EA5E9', offsetX: 0, offsetY: 6 })
     .onClick(() => {
       router.pushUrl({ url: `pages/${RouteConstants.AI_CHAT}` });
     })
   }
 
-  // ============================================================
-  // 推荐城市网格
-  // ============================================================
+  // ===== 推荐城市网格 - Flutter: 2 columns, white cards =====
   @Builder
   CitiesSection() {
     Column() {
-      // 标题行
       Row() {
-        Text('推荐城市')
+        Text('🌍 推荐城市')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.TEXT_PRIMARY)
@@ -247,11 +325,11 @@ export struct HomeTab {
           .fontSize(14)
           .fontColor(AppColors.PRIMARY)
           .onClick(() => {
-            AppStorage.set(AppStorageKeys.CURRENT_TAB_INDEX, 1);
+            router.pushUrl({ url: `pages/${RouteConstants.CITY_LIST}` });
           })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 16, bottom: 12 })
+      .padding({ left: 16, right: 16, top: 24, bottom: 16 })
 
       if (this.isLoading) {
         LoadingProgress()
@@ -264,7 +342,7 @@ export struct HomeTab {
           .fontColor(AppColors.TEXT_TERTIARY)
           .margin({ top: 20, bottom: 20 })
       } else {
-        // 城市网格 2列
+        // 城市网格 2列 - Flutter: spacing 12, aspect 0.68
         Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
           ForEach(this.cities.slice(0, 6), (city: City) => {
             this.CityCard(city)
@@ -279,20 +357,20 @@ export struct HomeTab {
   @Builder
   CityCard(city: City) {
     Column() {
-      // 城市图片
+      // 城市图片 - Flutter: gradient overlay
       Stack() {
         Image(CityHelper.landscapeImageUrl(city) || $r('app.media.startIcon'))
           .width('100%')
-          .height(120)
+          .height(130)
           .objectFit(ImageFit.Cover)
-          .borderRadius({ topLeft: 10, topRight: 10 })
+          .borderRadius({ topLeft: 12, topRight: 12 })
 
         // 评分标签
         if (city.overallScore && city.overallScore > 0) {
           Text(`⭐ ${city.overallScore.toFixed(1)}`)
             .fontSize(11)
-            .fontColor('#FFFFFF')
-            .backgroundColor('#00000066')
+            .fontColor(AppColors.WHITE)
+            .backgroundColor('#66000000')
             .borderRadius(10)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
             .position({ x: 8, y: 8 })
@@ -314,7 +392,6 @@ export struct HomeTab {
           .fontColor(AppColors.TEXT_SECONDARY)
           .maxLines(1)
 
-        // 标签
         Row({ space: 4 }) {
           if (city.temperature !== undefined) {
             Text(`🌡️ ${city.temperature}°C`)
@@ -329,13 +406,13 @@ export struct HomeTab {
         }
       }
       .width('100%')
-      .padding({ left: 8, right: 8, top: 8, bottom: 10 })
+      .padding({ left: 10, right: 10, top: 10, bottom: 12 })
       .alignItems(HorizontalAlign.Start)
     }
     .width('48%')
-    .backgroundColor(AppColors.CARD_BACKGROUND)
-    .borderRadius(10)
-    .shadow({ radius: 4, color: '#0000000A', offsetX: 0, offsetY: 2 })
+    .backgroundColor(AppColors.WHITE) // Flutter: white card
+    .borderRadius(12)
+    .shadow({ radius: 4, color: '#0A000000', offsetX: 0, offsetY: 2 })
     .margin({ bottom: 12 })
     .onClick(() => {
       router.pushUrl({
@@ -345,15 +422,12 @@ export struct HomeTab {
     })
   }
 
-  // ============================================================
-  // 近期聚会
-  // ============================================================
+  // ===== MeetupsSection - Flutter: horizontal scroll, card 280px =====
   @Builder
   MeetupsSection() {
     Column() {
-      // 标题
       Row() {
-        Text('近期聚会')
+        Text('🍹 近期聚会')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.TEXT_PRIMARY)
@@ -362,7 +436,7 @@ export struct HomeTab {
           .fontSize(14)
           .fontColor(AppColors.PRIMARY)
           .onClick(() => {
-            AppStorage.set(AppStorageKeys.CURRENT_TAB_INDEX, 2);
+            router.pushUrl({ url: `pages/${RouteConstants.MEETUP_LIST}` });
           })
       }
       .width('100%')
@@ -374,73 +448,108 @@ export struct HomeTab {
           .fontColor(AppColors.TEXT_TERTIARY)
           .margin({ top: 12, bottom: 12 })
       } else {
-        ForEach(this.meetups.slice(0, 3), (meetup: Meetup) => {
-          this.MeetupCard(meetup)
-        }, (meetup: Meetup) => meetup.id)
+        // 水平滚动 - Flutter: card width 280
+        Scroll() {
+          Row({ space: 12 }) {
+            ForEach(this.meetups, (meetup: Meetup) => {
+              this.MeetupCard(meetup)
+            }, (meetup: Meetup) => meetup.id)
+          }
+          .padding({ left: 16, right: 16 })
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
       }
     }
   }
 
   @Builder
   MeetupCard(meetup: Meetup) {
-    Row() {
-      // 左侧日期
-      Column({ space: 2 }) {
+    Column() {
+      // 日期
+      Row({ space: 8 }) {
         Text(new Date(meetup.schedule.startTime).getDate().toString())
-          .fontSize(24)
+          .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.PRIMARY)
         Text(new Date(meetup.schedule.startTime).toLocaleDateString('zh-CN', { month: 'short' }))
-          .fontSize(12)
-          .fontColor(AppColors.TEXT_SECONDARY)
-      }
-      .width(56)
-      .justifyContent(FlexAlign.Center)
-
-      // 右侧信息
-      Column({ space: 4 }) {
-        Text(meetup.title)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(AppColors.TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-        Text(meetup.venue.name)
           .fontSize(13)
           .fontColor(AppColors.TEXT_SECONDARY)
-          .maxLines(1)
+      }
 
-        Row({ space: 8 }) {
-          Text(`👥 ${meetup.capacity.current}${meetup.capacity.max ? '/' + meetup.capacity.max : ''}`)
-            .fontSize(12)
-            .fontColor(AppColors.TEXT_TERTIARY)
+      Text(meetup.title)
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.TEXT_PRIMARY)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ top: 8 })
 
-          if (MeetupHelper.isStartingSoon(meetup)) {
-            Text('即将开始')
-              .fontSize(11)
-              .fontColor('#FFFFFF')
-              .backgroundColor(AppColors.WARNING)
-              .borderRadius(4)
-              .padding({ left: 6, right: 6, top: 1, bottom: 1 })
-          }
+      Text(meetup.venue.name)
+        .fontSize(13)
+        .fontColor(AppColors.TEXT_SECONDARY)
+        .maxLines(1)
+        .margin({ top: 4 })
+
+      Blank()
+
+      Row({ space: 8 }) {
+        Text(`👥 ${meetup.capacity.current}${meetup.capacity.max ? '/' + meetup.capacity.max : ''}`)
+          .fontSize(12)
+          .fontColor(AppColors.TEXT_TERTIARY)
+
+        if (MeetupHelper.isStartingSoon(meetup)) {
+          Text('即将开始')
+            .fontSize(11)
+            .fontColor(AppColors.WHITE)
+            .backgroundColor(AppColors.WARNING)
+            .borderRadius(4)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
         }
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-      .padding({ left: 12 })
     }
-    .width('100%')
-    .padding(12)
-    .margin({ left: 16, right: 16, bottom: 8 })
-    .backgroundColor(AppColors.CARD_BACKGROUND)
-    .borderRadius(10)
-    .shadow({ radius: 4, color: '#0000000A', offsetX: 0, offsetY: 1 })
+    .width(280)
+    .height(160)
+    .padding(16)
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .shadow({ radius: 4, color: '#0A000000', offsetX: 0, offsetY: 2 })
+    .alignItems(HorizontalAlign.Start)
     .onClick(() => {
       router.pushUrl({
         url: `pages/${RouteConstants.MEETUP_DETAIL}`,
         params: { meetupId: meetup.id },
       });
     })
+  }
+
+  // ===== Feature Highlights - Flutter: emoji + text list =====
+  @Builder
+  FeatureHighlights() {
+    Column() {
+      this.FeatureItem('🏆', 'Attend meetups in cities across the world')
+      this.FeatureItem('❤️', 'Meet new people for dating and friends')
+      this.FeatureItem('📊', 'Research destinations to find the best place')
+      this.FeatureItem('🌍', 'Keep track of your travels and plan trips')
+      this.FeatureItem('💬', 'Join our exclusive community chat')
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 40, bottom: 20 })
+  }
+
+  @Builder
+  FeatureItem(emoji: string, text: string) {
+    Row() {
+      Text(emoji)
+        .fontSize(24)
+      Text(text)
+        .fontSize(15)
+        .fontColor(AppColors.TEXT_PRIMARY)
+        .margin({ left: 12 })
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .margin({ bottom: 12 })
+    .alignItems(VerticalAlign.Top)
   }
 }

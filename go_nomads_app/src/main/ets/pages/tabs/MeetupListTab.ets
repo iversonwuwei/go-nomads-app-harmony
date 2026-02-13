@@ -9,7 +9,17 @@ const TAG = 'MeetupListTab';
 const DOMAIN = 0x0001;
 
 /**
- * 聚会列表 Tab - 对应 Flutter 端 MeetupListPage
+ * 聚会列表页 - 100% 还原 Flutter MeetupListPage
+ *
+ * Flutter 设计:
+ *   AppBar: white bg, "聚会活动", backButton, createButton (#FF4458 circle_plus)
+ *   TabBar: 4 tabs (全部/已参加/过去的/已取消)
+ *     selected: #FF4458, w600, 13px
+ *     unselected: grey[600], w500, 13px
+ *     indicator: #FF4458, 2.5px underline
+ *   MeetupListCard: white bg, radius 16, border borderLight 1px, shadow
+ *     image: 180h, top radius 16
+ *     content: title 16px bold, time/location/participants
  */
 @Component
 export struct MeetupListTab {
@@ -17,10 +27,10 @@ export struct MeetupListTab {
   @State isLoading: boolean = true;
   @State hasError: boolean = false;
   @State errorMsg: string = '';
-  @State selectedFilter: string = '全部';
+  @State selectedTabIndex: number = 0;
   @State isRefreshing: boolean = false;
 
-  private filters: string[] = ['全部', '即将开始', '进行中', '我参加的'];
+  private tabLabels: string[] = ['全部', '已参加', '过去的', '已取消'];
 
   aboutToAppear(): void {
     this.loadMeetups();
@@ -31,7 +41,16 @@ export struct MeetupListTab {
     this.hasError = false;
     try {
       const meetupService = MeetupService.getInstance();
-      const meetups = await meetupService.getMeetups('upcoming', 1, 50);
+      // 根据 tab 加载不同类型
+      let filter: string = 'upcoming';
+      if (this.selectedTabIndex === 1) {
+        filter = 'joined';
+      } else if (this.selectedTabIndex === 2) {
+        filter = 'past';
+      } else if (this.selectedTabIndex === 3) {
+        filter = 'cancelled';
+      }
+      const meetups = await meetupService.getMeetups(filter, 1, 50);
       this.meetups = meetups;
       hilog.info(DOMAIN, TAG, '✅ 加载 %{public}d 个聚会', meetups.length);
     } catch (err) {
@@ -44,47 +63,45 @@ export struct MeetupListTab {
     }
   }
 
-  getFilteredMeetups(): Meetup[] {
-    switch (this.selectedFilter) {
-      case '即将开始':
-        return this.meetups.filter(m => MeetupHelper.isStartingSoon(m));
-      case '进行中':
-        return this.meetups.filter(m => MeetupHelper.isOngoing(m));
-      case '我参加的':
-        return this.meetups.filter(m => m.isJoined === true);
-      default:
-        return this.meetups;
-    }
-  }
-
   build() {
     Column() {
-      // 标题 + 创建按钮
+      // ===== Flutter AppBar: white bg, title, create button =====
       Row() {
+        // Back button
+        SymbolGlyph($r('sys.symbol.chevron_left'))
+          .fontSize(24)
+          .fontColor([AppColors.TEXT_PRIMARY])
+          .onClick(() => {
+            router.back();
+          })
+          .width(40)
+
         Text('聚会活动')
-          .fontSize(22)
+          .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor(AppColors.TEXT_PRIMARY)
+          .layoutWeight(1)
+          .textAlign(TextAlign.Center)
 
-        Blank()
-
-        Button('+ 创建')
-          .height(34)
-          .fontSize(14)
-          .borderRadius(17)
-          .backgroundColor(AppColors.PRIMARY)
-          .fontColor('#FFFFFF')
+        // Create button: #FF4458 plus_circle
+        SymbolGlyph($r('sys.symbol.plus_circle'))
+          .fontSize(24)
+          .fontColor([AppColors.PRIMARY])
           .onClick(() => {
             router.pushUrl({ url: `pages/${RouteConstants.CREATE_MEETUP}` });
           })
+          .width(40)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      .height(56)
+      .padding({ left: 8, right: 8 })
+      .backgroundColor(AppColors.WHITE)
+      .alignItems(VerticalAlign.Center)
 
-      // 筛选器
-      this.FilterBar()
+      // ===== Flutter TabBar: 4 tabs =====
+      this.TabBarSection()
 
-      // 聚会列表
+      // ===== Content =====
       if (this.isLoading && !this.isRefreshing) {
         Column() {
           LoadingProgress().width(40).height(40)
@@ -93,23 +110,9 @@ export struct MeetupListTab {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else if (this.hasError) {
-        Column({ space: 12 }) {
-          Text('😞').fontSize(48)
-          Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
-          Text(this.errorMsg).fontSize(13).fontColor(AppColors.TEXT_TERTIARY)
-          Button('重试')
-            .height(36)
-            .fontSize(14)
-            .borderRadius(18)
-            .backgroundColor(AppColors.PRIMARY)
-            .fontColor('#FFFFFF')
-            .onClick(() => {
-              this.loadMeetups();
-            })
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        this.ErrorView()
+      } else if (this.meetups.length === 0) {
+        this.EmptyView()
       } else {
         Refresh({ refreshing: $$this.isRefreshing }) {
           this.MeetupList()
@@ -125,34 +128,93 @@ export struct MeetupListTab {
     .backgroundColor(AppColors.BACKGROUND)
   }
 
+  // ===== Flutter TabBar: selected #FF4458 w600 13px, underline 2.5px =====
   @Builder
-  FilterBar() {
-    Scroll() {
-      Row({ space: 8 }) {
-        ForEach(this.filters, (filter: string) => {
-          Text(filter)
-            .fontSize(13)
-            .fontColor(this.selectedFilter === filter ? '#FFFFFF' : AppColors.TEXT_SECONDARY)
-            .backgroundColor(this.selectedFilter === filter ? AppColors.PRIMARY : '#F1F5F9')
-            .borderRadius(16)
-            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-            .onClick(() => {
-              this.selectedFilter = filter;
-            })
-        }, (filter: string) => filter)
+  TabBarSection() {
+    Column() {
+      Row() {
+        ForEach(this.tabLabels, (label: string, index: number) => {
+          Column({ space: 8 }) {
+            Text(label)
+              .fontSize(13)
+              .fontWeight(this.selectedTabIndex === index ? FontWeight.Bold : FontWeight.Medium)
+              .fontColor(this.selectedTabIndex === index ? AppColors.PRIMARY : '#757575')
+
+            // Underline indicator
+            Column()
+              .width('60%')
+              .height(2.5)
+              .borderRadius(1.25)
+              .backgroundColor(this.selectedTabIndex === index ? AppColors.PRIMARY : 'transparent')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Center)
+          .padding({ top: 12, bottom: 6 })
+          .onClick(() => {
+            if (this.selectedTabIndex !== index) {
+              this.selectedTabIndex = index;
+              this.loadMeetups();
+            }
+          })
+        }, (label: string, index: number) => label)
       }
-      .padding({ left: 16, right: 16 })
+      .width('100%')
     }
-    .scrollable(ScrollDirection.Horizontal)
-    .scrollBar(BarState.Off)
     .width('100%')
-    .margin({ bottom: 12 })
+    .backgroundColor(AppColors.WHITE)
+    .border({ width: { bottom: 1 }, color: { bottom: '#11000000' } })
   }
 
+  // ===== Empty View =====
+  @Builder
+  EmptyView() {
+    Column({ space: 16 }) {
+      SymbolGlyph($r('sys.symbol.compass'))
+        .fontSize(64)
+        .fontColor(['#C0C0C0'])
+
+      Text('暂无聚会')
+        .fontSize(16)
+        .fontColor(AppColors.TEXT_SECONDARY)
+
+      Text('创建或发现更多有趣的聚会吧')
+        .fontSize(14)
+        .fontColor(AppColors.TEXT_TERTIARY)
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  // ===== Error View =====
+  @Builder
+  ErrorView() {
+    Column({ space: 12 }) {
+      Text('⚠️').fontSize(48)
+      Text('加载失败').fontSize(16).fontColor(AppColors.TEXT_SECONDARY)
+      Text(this.errorMsg).fontSize(13).fontColor(AppColors.TEXT_TERTIARY)
+      Button('重试')
+        .height(40)
+        .fontSize(14)
+        .borderRadius(20)
+        .backgroundColor(AppColors.PRIMARY)
+        .fontColor(AppColors.WHITE)
+        .onClick(() => {
+          this.loadMeetups();
+        })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  // ===== Meetup List =====
   @Builder
   MeetupList() {
     List() {
-      ForEach(this.getFilteredMeetups(), (meetup: Meetup) => {
+      ForEach(this.meetups, (meetup: Meetup) => {
         ListItem() {
           this.MeetupCard(meetup)
         }
@@ -161,35 +223,71 @@ export struct MeetupListTab {
     .layoutWeight(1)
     .divider({ strokeWidth: 0 })
     .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
+    .padding({ left: 16, right: 16, top: 16, bottom: 100 })
   }
 
+  // ===== Flutter MeetupListCard: white bg, radius 16, border borderLight, shadow =====
   @Builder
   MeetupCard(meetup: Meetup) {
     Column() {
-      // 封面图（如果有）
-      if (meetup.images.length > 0) {
-        Image(meetup.images[0])
+      // Image section: 180h, top radius 16
+      Stack() {
+        if (meetup.images.length > 0) {
+          Image(meetup.images[0])
+            .width('100%')
+            .height(180)
+            .objectFit(ImageFit.Cover)
+            .borderRadius({ topLeft: 16, topRight: 16 })
+        } else {
+          // Placeholder
+          Column() {
+            SymbolGlyph($r('sys.symbol.compass'))
+              .fontSize(64)
+              .fontColor(['#BDBDBD'])
+          }
           .width('100%')
-          .height(140)
-          .objectFit(ImageFit.Cover)
-          .borderRadius({ topLeft: 12, topRight: 12 })
+          .height(180)
+          .backgroundColor('#F5F5F5')
+          .borderRadius({ topLeft: 16, topRight: 16 })
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+        }
+
+        // Cancelled overlay
+        if (meetup.status === MeetupStatus.Cancelled) {
+          Column() {
+            Text('已取消')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(AppColors.WHITE)
+              .padding({ left: 20, right: 20, top: 10, bottom: 10 })
+              .backgroundColor('#FF0000')
+              .borderRadius(8)
+          }
+          .width('100%')
+          .height(180)
+          .borderRadius({ topLeft: 16, topRight: 16 })
+          .backgroundColor('#80000000')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+        }
       }
 
-      Column({ space: 6 }) {
-        // 状态标签
+      // Content area
+      Column({ space: 8 }) {
+        // Type + status tags
         Row({ space: 6 }) {
           Text(this.getMeetupTypeLabel(meetup.type))
             .fontSize(11)
             .fontColor(AppColors.PRIMARY)
-            .backgroundColor('#0891B214')
+            .backgroundColor('#14FF4458') // PRIMARY 8% alpha
             .borderRadius(4)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
 
           if (MeetupHelper.isStartingSoon(meetup)) {
             Text('即将开始')
               .fontSize(11)
-              .fontColor('#FFFFFF')
+              .fontColor(AppColors.WHITE)
               .backgroundColor(AppColors.WARNING)
               .borderRadius(4)
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
@@ -197,14 +295,14 @@ export struct MeetupListTab {
           if (MeetupHelper.isOngoing(meetup)) {
             Text('进行中')
               .fontSize(11)
-              .fontColor('#FFFFFF')
+              .fontColor(AppColors.WHITE)
               .backgroundColor(AppColors.SUCCESS)
               .borderRadius(4)
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
           }
         }
 
-        // 标题
+        // Title
         Text(meetup.title)
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
@@ -212,24 +310,19 @@ export struct MeetupListTab {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        // 时间
+        // Date
         Row({ space: 6 }) {
-          Text('📅')
-            .fontSize(14)
+          Text('📅').fontSize(14)
           Text(new Date(meetup.schedule.startTime).toLocaleDateString('zh-CN', {
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+            month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
           }))
             .fontSize(13)
             .fontColor(AppColors.TEXT_SECONDARY)
         }
 
-        // 地点
+        // Location
         Row({ space: 6 }) {
-          Text('📍')
-            .fontSize(14)
+          Text('📍').fontSize(14)
           Text(meetup.venue.name)
             .fontSize(13)
             .fontColor(AppColors.TEXT_SECONDARY)
@@ -237,19 +330,15 @@ export struct MeetupListTab {
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
 
-        // 人数 + 组织者
+        // Participants + organizer
         Row() {
           Text(`👥 ${meetup.capacity.current}${meetup.capacity.max ? '/' + meetup.capacity.max : ''} 人`)
             .fontSize(12)
             .fontColor(AppColors.TEXT_TERTIARY)
-
           Blank()
-
-          Row({ space: 4 }) {
-            Text(meetup.organizer.name)
-              .fontSize(12)
-              .fontColor(AppColors.TEXT_TERTIARY)
-          }
+          Text(meetup.organizer.name)
+            .fontSize(12)
+            .fontColor(AppColors.TEXT_TERTIARY)
         }
         .width('100%')
       }
@@ -258,10 +347,11 @@ export struct MeetupListTab {
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .backgroundColor(AppColors.CARD_BACKGROUND)
-    .borderRadius(12)
-    .shadow({ radius: 4, color: '#0000000A', offsetX: 0, offsetY: 2 })
-    .margin({ bottom: 12 })
+    .backgroundColor(AppColors.WHITE) // Flutter: white, NOT CARD_BACKGROUND
+    .borderRadius(16) // Flutter: 16
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+    .shadow({ radius: 10, color: '#0D000000', offsetX: 0, offsetY: 2 }) // Flutter: black 5% blur 10
+    .margin({ bottom: 16 })
     .onClick(() => {
       router.pushUrl({
         url: `pages/${RouteConstants.MEETUP_DETAIL}`,

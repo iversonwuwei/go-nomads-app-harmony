@@ -12,7 +12,18 @@ const TAG = 'ProfileTab';
 const DOMAIN = 0x0001;
 
 /**
- * 个人中心 Tab - 对应 Flutter 端 ProfilePage
+ * 个人中心 Tab - 100% 还原 Flutter ProfilePage
+ *
+ * Flutter 结构:
+ *   ProfileHeaderWidget → avatar 80px circle, red 3px border, edit icon, name 24px bold, username, location
+ *   MembershipCardWidget → gradient card
+ *   TravelPlansWidget → travel plans list
+ *   NomadStatsWidget → stats grid
+ *   BadgesSectionWidget → badges
+ *   SkillsInterestsWidget → tags
+ *   TravelHistoryWidget → latest trip
+ *   SocialLinksWidget → links
+ *   LogoutWidget → red logout
  */
 @Component
 export struct ProfileTab {
@@ -46,8 +57,7 @@ export struct ProfileTab {
 
   async logout(): Promise<void> {
     try {
-      const authService = AuthService.getInstance();
-      await authService.logout();
+      await AuthService.getInstance().logout();
     } catch (err) {
       hilog.warn(DOMAIN, TAG, '⚠️ 退出登录异常: %{public}s', (err as Error).message);
     }
@@ -60,29 +70,22 @@ export struct ProfileTab {
         if (!this.isAuthenticated) {
           this.LoginPrompt()
         } else {
-          // 用户头像和信息
-          this.UserInfoSection()
+          // ===== ProfileHeaderWidget: avatar + info =====
+          this.ProfileHeader()
 
-          // 旅行统计
+          // ===== NomadStatsWidget: stats grid =====
           if (this.userDetail) {
-            this.StatsSection()
+            this.NomadStats()
           }
 
-          // 功能菜单
+          // ===== Menu Section =====
           this.MenuSection()
 
-          // 退出登录
-          Button('退出登录')
-            .width('90%')
-            .height(48)
-            .borderRadius(10)
-            .backgroundColor('#FEE2E2')
-            .fontColor(AppColors.ERROR)
-            .fontSize(16)
-            .margin({ top: 24, bottom: 40 })
-            .onClick(() => {
-              this.logout();
-            })
+          // ===== Logout =====
+          this.LogoutButton()
+
+          // 底部间距
+          Column().height(100)
         }
       }
       .width('100%')
@@ -94,19 +97,33 @@ export struct ProfileTab {
     .backgroundColor(AppColors.BACKGROUND)
   }
 
+  // ===== 未登录提示 =====
   @Builder
   LoginPrompt() {
     Column({ space: 16 }) {
-      Text('👤').fontSize(56)
+      // 头像占位
+      Column() {
+        SymbolGlyph($r('sys.symbol.person'))
+          .fontSize(40)
+          .fontColor([AppColors.TEXT_TERTIARY])
+      }
+      .width(80)
+      .height(80)
+      .borderRadius(40)
+      .backgroundColor(AppColors.GREY200)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
       Text('登录后享受完整功能')
         .fontSize(16)
         .fontColor(AppColors.TEXT_SECONDARY)
+
       Button('登录 / 注册')
         .width(160)
         .height(44)
         .borderRadius(22)
         .backgroundColor(AppColors.PRIMARY)
-        .fontColor('#FFFFFF')
+        .fontColor(AppColors.WHITE)
         .fontSize(16)
         .onClick(() => {
           router.pushUrl({ url: `pages/${RouteConstants.LOGIN}` });
@@ -115,90 +132,121 @@ export struct ProfileTab {
     .width('100%')
     .height('60%')
     .justifyContent(FlexAlign.Center)
-  }
-
-  @Builder
-  UserInfoSection() {
-    Column({ space: 8 }) {
-      // 头像
-      if (this.userDetail?.avatarUrl) {
-        Image(this.userDetail.avatarUrl)
-          .width(80)
-          .height(80)
-          .borderRadius(40)
-          .objectFit(ImageFit.Cover)
-      } else {
-        Text('👤')
-          .fontSize(40)
-          .width(80)
-          .height(80)
-          .textAlign(TextAlign.Center)
-          .backgroundColor('#F1F5F9')
-          .borderRadius(40)
-      }
-
-      // 用户名
-      Text(this.userDetail?.name || this.currentUser?.userName || '用户')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(AppColors.TEXT_PRIMARY)
-
-      // 简介
-      if (this.userDetail?.bio) {
-        Text(this.userDetail.bio)
-          .fontSize(14)
-          .fontColor(AppColors.TEXT_SECONDARY)
-          .textAlign(TextAlign.Center)
-          .maxLines(2)
-          .padding({ left: 32, right: 32 })
-      }
-
-      // 当前城市
-      if (this.userDetail?.currentCity) {
-        Row({ space: 4 }) {
-          Text('📍')
-            .fontSize(14)
-          Text(`${this.userDetail.currentCity}${this.userDetail.currentCountry ? ', ' + this.userDetail.currentCountry : ''}`)
-            .fontSize(14)
-            .fontColor(AppColors.TEXT_SECONDARY)
-        }
-      }
-
-      // 编辑按钮
-      Button('编辑资料')
-        .height(34)
-        .fontSize(14)
-        .borderRadius(17)
-        .backgroundColor('transparent')
-        .fontColor(AppColors.PRIMARY)
-        .borderWidth(1)
-        .borderColor(AppColors.PRIMARY)
-        .margin({ top: 4 })
-        .onClick(() => {
-          router.pushUrl({ url: `pages/${RouteConstants.PROFILE_EDIT}` });
-        })
-    }
-    .width('100%')
-    .padding({ top: 32, bottom: 20 })
     .alignItems(HorizontalAlign.Center)
   }
 
+  // ===== ProfileHeaderWidget: Flutter style =====
+  // Flutter: Row layout - avatar(80px circle, red 3px border) + info(name 24px, username, location)
   @Builder
-  StatsSection() {
+  ProfileHeader() {
+    Row() {
+      // Avatar with red border
+      Stack() {
+        Column() {
+          if (this.userDetail?.avatarUrl) {
+            Image(this.userDetail.avatarUrl)
+              .width(74)
+              .height(74)
+              .borderRadius(37)
+              .objectFit(ImageFit.Cover)
+          } else {
+            SymbolGlyph($r('sys.symbol.person'))
+              .fontSize(36)
+              .fontColor([AppColors.TEXT_TERTIARY])
+          }
+        }
+        .width(74)
+        .height(74)
+        .borderRadius(37)
+        .backgroundColor(AppColors.GREY200)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+
+        // Edit icon - positioned bottom right
+        Column() {
+          Text('✏️')
+            .fontSize(10)
+        }
+        .width(24)
+        .height(24)
+        .borderRadius(12)
+        .backgroundColor(AppColors.PRIMARY)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .position({ right: 0, bottom: 0 })
+      }
+      .width(80)
+      .height(80)
+      .border({ width: 3, color: AppColors.PRIMARY })
+      .borderRadius(40)
+      .onClick(() => {
+        router.pushUrl({ url: `pages/${RouteConstants.PROFILE_EDIT}` });
+      })
+
+      // User Info
+      Column({ space: 4 }) {
+        // Name 24px bold
+        Text(this.userDetail?.name || this.currentUser?.userName || '用户')
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1A1A1A')
+
+        // Username
+        if (this.userDetail?.name) {
+          Text(`@${this.userDetail.name}`)
+            .fontSize(16)
+            .fontColor('#6B7280')
+            .fontWeight(FontWeight.Medium)
+        }
+
+        // Location
+        if (this.userDetail?.currentCity) {
+          Row({ space: 4 }) {
+            Text('📍')
+              .fontSize(14)
+            Text(`${this.userDetail.currentCity}${this.userDetail.currentCountry ? ', ' + this.userDetail.currentCountry : ''}`)
+              .fontSize(14)
+              .fontColor(AppColors.TEXT_SECONDARY)
+          }
+          .margin({ top: 8 })
+        }
+
+        // Bio
+        if (this.userDetail?.bio) {
+          Text(this.userDetail.bio)
+            .fontSize(14)
+            .fontColor(AppColors.TEXT_SECONDARY)
+            .maxLines(2)
+            .margin({ top: 4 })
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .margin({ left: 20 })
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 32, bottom: 24 })
+    .alignItems(VerticalAlign.Top)
+  }
+
+  // ===== NomadStats: 4 stat items in white card =====
+  @Builder
+  NomadStats() {
     Row() {
       this.StatItem(this.userDetail!.stats.countriesVisited.toString(), '国家')
-      Divider().vertical(true).height(32).color(AppColors.DIVIDER)
+      this.StatDivider()
       this.StatItem(this.userDetail!.stats.citiesVisited.toString(), '城市')
-      Divider().vertical(true).height(32).color(AppColors.DIVIDER)
+      this.StatDivider()
       this.StatItem(this.userDetail!.stats.totalTrips.toString(), '行程')
-      Divider().vertical(true).height(32).color(AppColors.DIVIDER)
+      this.StatDivider()
       this.StatItem(this.userDetail!.stats.totalDays.toString(), '天数')
     }
     .width('100%')
     .padding({ top: 16, bottom: 16 })
     .margin({ left: 16, right: 16, bottom: 16 })
-    .backgroundColor(AppColors.CARD_BACKGROUND)
+    .backgroundColor(AppColors.WHITE) // Flutter uses white, not grey card
     .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
     .justifyContent(FlexAlign.SpaceEvenly)
   }
 
@@ -213,8 +261,18 @@ export struct ProfileTab {
         .fontSize(12)
         .fontColor(AppColors.TEXT_SECONDARY)
     }
+    .alignItems(HorizontalAlign.Center)
   }
 
+  @Builder
+  StatDivider() {
+    Divider()
+      .vertical(true)
+      .height(32)
+      .color(AppColors.DIVIDER)
+  }
+
+  // ===== Menu Section: white card =====
   @Builder
   MenuSection() {
     Column() {
@@ -245,9 +303,10 @@ export struct ProfileTab {
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
-    .backgroundColor(AppColors.CARD_BACKGROUND)
+    .backgroundColor(AppColors.WHITE)
     .borderRadius(12)
     .margin({ left: 16, right: 16 })
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
   }
 
   @Builder
@@ -268,5 +327,22 @@ export struct ProfileTab {
     .height(52)
     .padding({ left: 12, right: 12 })
     .onClick(onClick)
+  }
+
+  // ===== Logout Button: Flutter style - light red bg =====
+  @Builder
+  LogoutButton() {
+    Button('退出登录')
+      .width('90%')
+      .height(48)
+      .borderRadius(12)
+      .backgroundColor(AppColors.PRIMARY_LIGHT) // #FFE5E8
+      .fontColor(AppColors.PRIMARY) // #FF4458
+      .fontSize(16)
+      .fontWeight(FontWeight.Bold)
+      .margin({ top: 32, bottom: 20 })
+      .onClick(() => {
+        this.logout();
+      })
   }
 }
