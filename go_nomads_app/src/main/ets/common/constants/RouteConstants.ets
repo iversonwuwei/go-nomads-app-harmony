@@ -71,6 +71,8 @@ export class RouteConstants {
   // ============================================================
   static readonly TRAVEL_PLAN: string = 'TravelPlanPage';
   static readonly CREATE_TRAVEL_PLAN: string = 'CreateTravelPlanPage';
+  static readonly TRAVEL_HISTORY: string = 'TravelHistoryPage';
+  static readonly VISITED_PLACES: string = 'VisitedPlacesPage';
 
   // ============================================================
   // 用户相关

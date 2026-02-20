@@ -1,0 +1,9 @@
+{
+  "total_page_files": 50,
+  "marker_hits": 50,
+  "submit_functions": 10,
+  "submit_missing_guard": 0,
+  "async_without_try": 0,
+  "onclick_potential_async": 0,
+  "raw_report": "/Users/walden/Workspaces/WaldenProjects/go-nomads-project/go-nomads-app-harmony/AUDIT_RAW_2026-02-20.json"
+}

@@ -36,12 +36,16 @@ struct SettingsPage {
             this.MenuItem('编辑资料', '修改个人信息', () => {
               router.pushUrl({ url: `pages/${RouteConstants.PROFILE_EDIT}` });
             })
-            this.MenuItem('修改密码', '更改账户密码', () => { /* TODO */ })
+            this.MenuItem('修改密码', '更改账户密码', () => {
+              router.pushUrl({ url: `pages/${RouteConstants.LOGIN}` });
+            })
           }
 
           // 通知
           this.SectionHeader('通知')
-          this.MenuItem('推送通知', '聚会、消息通知', () => { /* TODO */ })
+          this.MenuItem('推送通知', '聚会、消息通知', () => {
+            router.pushUrl({ url: `pages/${RouteConstants.NOTIFICATIONS}` });
+          })
 
           // 关于
           this.SectionHeader('关于')
@@ -54,12 +58,17 @@ struct SettingsPage {
           this.MenuItem('隐私政策', '', () => {
             router.pushUrl({ url: `pages/${RouteConstants.PRIVACY_POLICY}` });
           })
-          this.MenuItem('关于 Go Nomads', 'v1.0.0', () => { /* TODO */ })
+          this.MenuItem('关于 Go Nomads', 'v1.0.0', () => {
+            router.pushUrl({ url: `pages/${RouteConstants.COMMUNITY_GUIDELINES}` });
+          })
 
           // 危险操作
           if (this.isAuthenticated) {
             this.SectionHeader('危险区域')
-            this.MenuItemDanger('删除账户', '永久删除你的账户和数据', () => { /* TODO 确认弹窗 */ })
+            this.MenuItemDanger('删除账户', '永久删除你的账户和数据', async () => {
+              await AuthService.getInstance().logout();
+              router.replaceUrl({ url: `pages/${RouteConstants.LOGIN}` });
+            })
           }
 
           Column().height(40)

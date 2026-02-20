@@ -34,6 +34,7 @@ export struct CityListTab {
   @State isRefreshing: boolean = false;
   @State currentPage: number = 1;
   @State hasMore: boolean = true;
+  @State isLoadingMore: boolean = false;
 
   private regions: string[] = ['全部', 'Asia', 'Europe', 'Americas', 'Africa', 'Oceania'];
   private pageSize: number = 30;
@@ -45,6 +46,7 @@ export struct CityListTab {
   async loadCities(): Promise<void> {
     this.isLoading = true;
     this.hasError = false;
+    this.isLoadingMore = false;
     try {
       const cityService = CityService.getInstance();
       const cities = await cityService.getCities(1, this.pageSize);
@@ -64,9 +66,10 @@ export struct CityListTab {
   }
 
   async loadMore(): Promise<void> {
-    if (!this.hasMore || this.isLoading) {
+    if (!this.hasMore || this.isLoading || this.isLoadingMore) {
       return;
     }
+    this.isLoadingMore = true;
     try {
       const nextPage = this.currentPage + 1;
       const cityService = CityService.getInstance();
@@ -81,6 +84,8 @@ export struct CityListTab {
       }
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ 加载更多失败: %{public}s', (err as Error).message);
+    } finally {
+      this.isLoadingMore = false;
     }
   }
 
@@ -250,7 +255,7 @@ export struct CityListTab {
         .borderRadius(20)
         .backgroundColor(AppColors.PRIMARY)
         .fontColor(AppColors.WHITE)
-        .onClick(() => { this.loadCities(); })
+        .onClick(async () => { await this.loadCities(); })
     }
     .width('100%')
     .layoutWeight(1)
@@ -270,6 +275,10 @@ export struct CityListTab {
         }
         .width('100%')
         .padding({ left: 12, right: 12 })
+
+        if (this.hasMore || this.isLoadingMore) {
+          this.LoadMoreIndicator()
+        }
 
         Column().height(100)
       }
@@ -348,6 +357,33 @@ export struct CityListTab {
         url: `pages/${RouteConstants.CITY_DETAIL}`,
         params: { cityId: city.id, cityName: city.name },
       });
+    })
+  }
+
+  @Builder
+  LoadMoreIndicator() {
+    Column({ space: 8 }) {
+      LoadingProgress()
+        .width(28)
+        .height(28)
+
+      Text(this.isLoadingMore ? '加载中...' : '加载更多城市')
+        .fontSize(13)
+        .fontColor(AppColors.TEXT_SECONDARY)
+    }
+    .width('100%')
+    .padding({ top: 16, bottom: 24 })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onAppear(() => {
+      if (!this.isLoadingMore) {
+        this.loadMore();
+      }
+    })
+    .onClick(() => {
+      if (!this.isLoadingMore) {
+        this.loadMore();
+      }
     })
   }
 }

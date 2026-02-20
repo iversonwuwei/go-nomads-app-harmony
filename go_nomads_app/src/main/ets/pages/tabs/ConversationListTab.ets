@@ -160,8 +160,8 @@ export struct ConversationListTab {
         .borderRadius(20)
         .backgroundColor('#07C160') // 微信绿
         .fontColor(AppColors.WHITE)
-        .onClick(() => {
-          this.loadConversations();
+        .onClick(async () => {
+          await this.loadConversations();
         })
     }
     .width('100%')
@@ -258,6 +258,12 @@ export struct ConversationListTab {
             .fontColor('#999999') // Flutter exact color
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+        } else {
+          Text(this.previewText(conv))
+            .fontSize(14)
+            .fontColor('#B2B2B2')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
       }
       .layoutWeight(1)
@@ -268,10 +274,24 @@ export struct ConversationListTab {
     .backgroundColor(AppColors.WHITE)
     .border({ width: { bottom: 0.5 }, color: { bottom: '#E8E8E8' } }) // Flutter: Border bottom
     .onClick(() => {
-      router.pushUrl({
-        url: `pages/${RouteConstants.DIRECT_CHAT}`,
-        params: { chatId: conv.id, chatTitle: conv.name },
-      });
+      const roomType = (conv.type || '').toLowerCase();
+      const isGroupRoom = roomType === 'group' || roomType === 'city' || roomType === 'meetup';
+      if (isGroupRoom) {
+        router.pushUrl({
+          url: `pages/${RouteConstants.CITY_CHAT}`,
+          params: {
+            chatId: conv.id,
+            cityId: conv.id,
+            cityName: conv.name,
+            chatTitle: conv.name,
+          },
+        });
+      } else {
+        router.pushUrl({
+          url: `pages/${RouteConstants.DIRECT_CHAT}`,
+          params: { chatId: conv.id, chatTitle: conv.name },
+        });
+      }
     })
   }
 
@@ -330,9 +350,14 @@ export struct ConversationListTab {
     .height('100%')
     .justifyContent(FlexAlign.Center)
     .backgroundColor('#FF3B30')
-    .onClick(() => {
-      // TODO: 确认删除对话框
-      hilog.info(DOMAIN, TAG, '删除会话: %{public}s', conv.id);
+    .onClick(async () => {
+      try {
+        await ChatService.getInstance().leaveChatRoom(conv.id);
+      } catch (err) {
+        hilog.warn(DOMAIN, TAG, '离开会话失败，继续本地移除: %{public}s', (err as Error).message);
+      }
+      this.conversations = this.conversations.filter((c) => c.id !== conv.id);
+      hilog.info(DOMAIN, TAG, '已移除会话: %{public}s', conv.id);
     })
   }
 
@@ -347,5 +372,16 @@ export struct ConversationListTab {
     if (diffMin < 1440) return `${Math.floor(diffMin / 60)}小时前`;
     if (diffMin < 10080) return `${Math.floor(diffMin / 1440)}天前`;
     return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  }
+
+  private previewText(conv: ChatRoom): string {
+    const roomType = (conv.type || '').toLowerCase();
+    if (roomType === 'group' || roomType === 'city') {
+      return '加入群聊，和本地游民实时交流';
+    }
+    if (roomType === 'meetup') {
+      return '聚会群已创建，点击进入聊天';
+    }
+    return '点击开始聊天';
   }
 }

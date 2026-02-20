@@ -164,7 +164,7 @@ export struct HomeTab {
             router.pushUrl({ url: `pages/${RouteConstants.CITY_LIST}` });
           })
           this.ServiceCard('Coworks', AppColors.HOME_COWORKS, '🏢', () => {
-            // TODO: coworking page
+            router.pushUrl({ url: `pages/${RouteConstants.COWORKING_LIST}` });
           })
         }
         .width('100%')
@@ -175,7 +175,7 @@ export struct HomeTab {
             router.pushUrl({ url: `pages/${RouteConstants.MEETUP_LIST}` });
           })
           this.ServiceCard('Innovation', AppColors.HOME_INNOVATION, '💡', () => {
-            // TODO: innovation page
+            router.pushUrl({ url: `pages/${RouteConstants.INNOVATION_LIST}` });
           })
         }
         .width('100%')

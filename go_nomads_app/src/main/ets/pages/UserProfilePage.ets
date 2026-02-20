@@ -17,6 +17,7 @@ const DOMAIN = 0x0001;
 struct UserProfilePage {
   @State user: User | null = null;
   @State isLoading: boolean = true;
+  @State isRefreshing: boolean = false;
   private userId: string = '';
 
   aboutToAppear(): void {
@@ -28,7 +29,9 @@ struct UserProfilePage {
   }
 
   async loadUser(): Promise<void> {
-    this.isLoading = true;
+    if (!this.isRefreshing) {
+      this.isLoading = true;
+    }
     try {
       const httpService = HttpService.getInstance();
       this.user = await httpService.get<User>(`${ApiConfig.USER_PROFILE_ENDPOINT}/${this.userId}`);
@@ -36,6 +39,7 @@ struct UserProfilePage {
       hilog.error(DOMAIN, TAG, '❌ 加载用户资料失败: %{public}s', JSON.stringify(err));
     } finally {
       this.isLoading = false;
+      this.isRefreshing = false;
     }
   }
 
@@ -43,26 +47,34 @@ struct UserProfilePage {
     Column() {
       this.TopBar()
 
-      if (this.isLoading) {
+      if (this.isLoading && !this.isRefreshing) {
         Column() { LoadingProgress().width(40).height(40) }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
       } else if (this.user) {
-        Scroll() {
-          Column() {
-            this.UserHeader()
-            this.StatsSection()
-            if (this.user!.skills.length > 0) {
-              this.SkillsTagSection()
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          Scroll() {
+            Column() {
+              this.UserHeader()
+              this.StatsSection()
+              this.BadgesSection()
+              if (this.user!.skills.length > 0) {
+                this.SkillsTagSection()
+              }
+              if (this.user!.interests.length > 0) {
+                this.InterestsTagSection()
+              }
+              if (this.user!.socialLinks) { this.SocialLinksSection() }
+              this.TravelHistorySection()
+              this.ActionButtons()
+              Column().height(40)
             }
-            if (this.user!.interests.length > 0) {
-              this.InterestsTagSection()
-            }
-            if (this.user!.socialLinks) { this.SocialLinksSection() }
-            this.ActionButtons()
-            Column().height(40)
           }
+          .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
         }
-        .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+        .onRefreshing(() => {
+          this.isRefreshing = true;
+          this.loadUser();
+        })
       }
     }
     .width('100%').height('100%').backgroundColor(AppColors.BACKGROUND)
@@ -178,6 +190,37 @@ struct UserProfilePage {
   }
 
   @Builder
+  BadgesSection() {
+    Column({ space: 8 }) {
+      Text('🎖 徽章').fontSize(16).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY)
+      if (this.user!.badges.length > 0) {
+        Flex({ wrap: FlexWrap.Wrap }) {
+          ForEach(this.user!.badges, (badge) => {
+            Row({ space: 6 }) {
+              Text(badge.icon ?? '🏅')
+              Column({ space: 2 }) {
+                Text(badge.name).fontSize(13).fontWeight(FontWeight.Medium).fontColor(AppColors.TEXT_PRIMARY)
+                if (badge.description) {
+                  Text(badge.description!).fontSize(12).fontColor(AppColors.TEXT_SECONDARY)
+                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+            }
+            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+            .backgroundColor('#F8FAFC')
+            .borderRadius(12)
+            .border({ width: 1, color: AppColors.BORDER_LIGHT })
+            .margin({ right: 8, bottom: 8 })
+          }, (badge) => badge.id)
+        }
+      } else {
+        Text('还没有获得徽章').fontSize(13).fontColor(AppColors.TEXT_SECONDARY)
+      }
+    }
+    .width('100%').padding({ left: 16, right: 16, bottom: 12 }).alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
   SocialLinksSection() {
     Column({ space: 8 }) {
       Text('🔗 社交链接').fontSize(16).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY)
@@ -205,6 +248,19 @@ struct UserProfilePage {
         .textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
     }
     .padding({ top: 4, bottom: 4 })
+  }
+
+  @Builder
+  TravelHistorySection() {
+    Column({ space: 8 }) {
+      Text('🧳 旅行历史').fontSize(16).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY)
+      Text(`行程 ${this.user!.stats.totalTrips} 次 · 天数 ${this.user!.stats.totalDays}`)
+        .fontSize(13).fontColor(AppColors.TEXT_SECONDARY)
+    }
+    .width('100%').padding({ left: 16, right: 16, bottom: 16 }).alignItems(HorizontalAlign.Start)
+    .onClick(() => {
+      router.pushUrl({ url: `pages/${RouteConstants.TRAVEL_HISTORY}` });
+    })
   }
 
   @Builder

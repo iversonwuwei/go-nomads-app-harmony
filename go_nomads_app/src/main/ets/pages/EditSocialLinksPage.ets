@@ -100,7 +100,7 @@ struct EditSocialLinksPage {
           .fontColor(AppColors.TEXT_PRIMARY).layoutWeight(1).textAlign(TextAlign.Center)
         Button('保存').height(34).fontSize(14).borderRadius(17)
           .backgroundColor(AppColors.PRIMARY).fontColor('#FFFFFF')
-          .enabled(!this.isSaving).onClick(() => { this.save(); })
+          .enabled(!this.isSaving).onClick(async () => { await this.save(); })
       }
       .width('100%').height(56).padding({ left: 16, right: 16 })
       .backgroundColor(AppColors.CARD_BACKGROUND)

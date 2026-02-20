@@ -200,8 +200,8 @@ export struct MeetupListTab {
         .borderRadius(20)
         .backgroundColor(AppColors.PRIMARY)
         .fontColor(AppColors.WHITE)
-        .onClick(() => {
-          this.loadMeetups();
+        .onClick(async () => {
+          await this.loadMeetups();
         })
     }
     .width('100%')

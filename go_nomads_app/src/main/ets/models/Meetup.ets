@@ -45,6 +45,17 @@ export interface MeetupOrganizerInfo {
 }
 
 /**
+ * 参与者信息（后端 participants）
+ */
+export interface MeetupParticipantInfo {
+  id: string;
+  userId: string;
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+/**
  * 聚会实体 - 对应后端 EventResponse DTO
  */
 export interface Meetup {
@@ -77,6 +88,7 @@ export interface Meetup {
   followerCount: number;
   city?: MeetupCityInfo;
   organizer?: MeetupOrganizerInfo;
+  participants?: MeetupParticipantInfo[];
 }
 
 /**

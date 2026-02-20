@@ -5,6 +5,10 @@ import { AuthService } from '../../services/AuthService';
 import { UserService } from '../../services/UserService';
 import { AuthUser } from '../../models/AuthModels';
 import { User, UserHelper } from '../../models/User';
+import { TravelHistory } from '../../models/TravelHistory';
+import { TravelPlanSummary } from '../../models/TravelPlanSummary';
+import { TravelHistoryService } from '../../services/TravelHistoryService';
+import { TravelPlanService } from '../../services/TravelPlanService';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -32,6 +36,9 @@ export struct ProfileTab {
   @State userDetail: User | null = null;
   @State isLoading: boolean = false;
   @State hasError: boolean = false;
+  @State isRefreshing: boolean = false;
+  @State latestTravelHistory: TravelHistory | null = null;
+  @State latestTravelPlan: TravelPlanSummary | null = null;
 
   aboutToAppear(): void {
     if (this.isAuthenticated) {
@@ -40,18 +47,30 @@ export struct ProfileTab {
   }
 
   async loadUserProfile(): Promise<void> {
-    this.isLoading = true;
+    if (!this.isRefreshing) {
+      this.isLoading = true;
+    }
     this.hasError = false;
     try {
       const userService = UserService.getInstance();
       const user = await userService.getCurrentUser();
       this.userDetail = user;
       hilog.info(DOMAIN, TAG, '✅ 用户信息加载成功');
+
+      const travelHistorySvc = TravelHistoryService.getInstance();
+      const planSvc = TravelPlanService.getInstance();
+      const [history, plan] = await Promise.all([
+        travelHistorySvc.getLatest(),
+        planSvc.getLatest(),
+      ]);
+      this.latestTravelHistory = history;
+      this.latestTravelPlan = plan;
     } catch (err) {
       this.hasError = true;
       hilog.error(DOMAIN, TAG, '❌ 加载用户信息失败: %{public}s', (err as Error).message);
     } finally {
       this.isLoading = false;
+      this.isRefreshing = false;
     }
   }
 
@@ -65,36 +84,80 @@ export struct ProfileTab {
   }
 
   build() {
-    Scroll() {
-      Column() {
-        if (!this.isAuthenticated) {
-          this.LoginPrompt()
-        } else {
-          // ===== ProfileHeaderWidget: avatar + info =====
-          this.ProfileHeader()
-
-          // ===== NomadStatsWidget: stats grid =====
-          if (this.userDetail) {
-            this.NomadStats()
+    Column() {
+      if (this.isLoading && !this.isRefreshing) {
+        this.LoadingSkeleton()
+      } else if (this.hasError) {
+        this.ErrorState()
+      } else if (!this.isAuthenticated) {
+        this.LoginPrompt()
+      } else {
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          Scroll() {
+            Column() {
+              this.ProfileHeader()
+              if (this.userDetail) {
+                this.MembershipCard()
+                this.TravelPlansCard()
+                this.NomadStats()
+                this.BadgesSection()
+                this.SkillsInterests()
+                this.TravelHistory()
+                this.SocialLinks()
+              }
+              this.HelpSupport()
+              this.MenuSection()
+              this.LogoutButton()
+              Column().height(80)
+            }
+            .width('100%')
           }
-
-          // ===== Menu Section =====
-          this.MenuSection()
-
-          // ===== Logout =====
-          this.LogoutButton()
-
-          // 底部间距
-          Column().height(100)
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring)
         }
+        .onRefreshing(() => {
+          this.isRefreshing = true;
+          this.loadUserProfile();
+        })
       }
-      .width('100%')
     }
     .width('100%')
     .height('100%')
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
     .backgroundColor(AppColors.BACKGROUND)
+  }
+
+  @Builder
+  LoadingSkeleton() {
+    Column({ space: 16 }) {
+      Column().width(80).height(80).borderRadius(40).backgroundColor(AppColors.GREY200)
+      Column().width('70%').height(16).backgroundColor(AppColors.GREY200)
+      Column().width('50%').height(14).backgroundColor(AppColors.GREY200)
+      Column().width('90%').height(200).backgroundColor(AppColors.GREY200).borderRadius(12)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  ErrorState() {
+    Column({ space: 16 }) {
+      Text('加载失败，请重试')
+        .fontSize(16)
+        .fontColor(AppColors.TEXT_SECONDARY)
+      Button('重新加载')
+        .width(160)
+        .height(44)
+        .borderRadius(22)
+        .backgroundColor(AppColors.PRIMARY)
+        .fontColor(AppColors.WHITE)
+        .onClick(async () => { await this.loadUserProfile(); })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 
   // ===== 未登录提示 =====
@@ -229,6 +292,85 @@ export struct ProfileTab {
     .alignItems(VerticalAlign.Top)
   }
 
+  @Builder
+  MembershipCard() {
+    Column({ space: 8 }) {
+      Text('Nomad Membership')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.WHITE)
+      Text('解锁高级功能，结识更多游民伙伴')
+        .fontSize(13)
+        .fontColor(AppColors.WHITE)
+        .opacity(0.8)
+      Row({ space: 8 }) {
+        Button('立即升级')
+          .height(40)
+          .borderRadius(10)
+          .backgroundColor(AppColors.WHITE)
+          .fontColor(AppColors.PRIMARY)
+          .fontSize(14)
+          .onClick(() => {
+            router.pushUrl({ url: `pages/${RouteConstants.MEMBERSHIP_PLAN}` });
+          })
+        Text('当前：免费版')
+          .fontSize(13)
+          .fontColor(AppColors.WHITE)
+          .opacity(0.9)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 20, bottom: 20 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .borderRadius(16)
+    .backgroundColor('#FF6B6B')
+  }
+
+  @Builder
+  TravelPlansCard() {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
+        Text('✈️')
+        Text('我的旅行计划')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColors.TEXT_PRIMARY)
+      }
+      if (this.latestTravelPlan) {
+        Text(`${this.latestTravelPlan.cityName ?? '旅行计划'} · ${this.latestTravelPlan.durationDays ?? '--'} 天 · ${this.latestTravelPlan.destinationsCount ?? 1} 站`)
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+        Button('查看计划')
+          .height(40)
+          .borderRadius(10)
+          .backgroundColor(AppColors.PRIMARY)
+          .fontColor(AppColors.WHITE)
+          .onClick(() => {
+            router.pushUrl({
+              url: `pages/${RouteConstants.TRAVEL_PLAN}`,
+              params: { planId: this.latestTravelPlan?.id },
+            });
+          })
+      } else {
+        Text('创建行程计划，分享给好友或社区。')
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+        Button('创建计划')
+          .height(40)
+          .borderRadius(10)
+          .backgroundColor(AppColors.PRIMARY)
+          .fontColor(AppColors.WHITE)
+          .onClick(() => { router.pushUrl({ url: `pages/${RouteConstants.CREATE_TRAVEL_PLAN}` }); })
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+  }
+
   // ===== NomadStats: 4 stat items in white card =====
   @Builder
   NomadStats() {
@@ -248,6 +390,192 @@ export struct ProfileTab {
     .borderRadius(12)
     .border({ width: 1, color: AppColors.BORDER_LIGHT })
     .justifyContent(FlexAlign.SpaceEvenly)
+  }
+
+  @Builder
+  BadgesSection() {
+    Column({ space: 10 }) {
+      Text('徽章')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.TEXT_PRIMARY)
+      if (this.userDetail && this.userDetail.badges.length > 0) {
+        Flex({ wrap: FlexWrap.Wrap }) {
+          ForEach(this.userDetail!.badges, (badge) => {
+            Row({ space: 6 }) {
+              Text(badge.icon ?? '🏅')
+              Column({ space: 2 }) {
+                Text(badge.name).fontSize(13).fontWeight(FontWeight.Medium).fontColor(AppColors.TEXT_PRIMARY)
+                if (badge.description) {
+                  Text(badge.description!).fontSize(12).fontColor(AppColors.TEXT_SECONDARY).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+            }
+            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+            .backgroundColor('#F8FAFC')
+            .borderRadius(12)
+            .border({ width: 1, color: AppColors.BORDER_LIGHT })
+            .margin({ right: 8, bottom: 8 })
+          }, (badge) => badge.id)
+        }
+      } else {
+        Text('还没有徽章，参加活动或完成行程解锁奖励。')
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+  }
+
+  @Builder
+  SkillsInterests() {
+    Column({ space: 10 }) {
+      Text('技能与兴趣')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.TEXT_PRIMARY)
+      if (this.userDetail && (this.userDetail.skills.length > 0 || this.userDetail.interests.length > 0)) {
+        Flex({ wrap: FlexWrap.Wrap }) {
+          const tags: string[] = [];
+          this.userDetail!.skills.forEach((s) => tags.push(s.name));
+          this.userDetail!.interests.forEach((i) => tags.push(i.name));
+          ForEach(tags, (tag) => {
+            Text(tag)
+              .fontSize(13)
+              .fontColor(AppColors.TEXT_SECONDARY)
+              .backgroundColor('#F1F5F9')
+              .borderRadius(14)
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .margin({ right: 8, bottom: 8 })
+          }, (tag) => tag)
+        }
+      } else {
+        Text('添加技能和兴趣，匹配志同道合的伙伴。')
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+  }
+
+  @Builder
+  TravelHistory() {
+    Column({ space: 10 }) {
+      Row({ space: 8 }) {
+        Text('🧳')
+        Text('旅行历史')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColors.TEXT_PRIMARY)
+        Column().layoutWeight(1)
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(16)
+          .fontColor([AppColors.TEXT_TERTIARY])
+      }
+      if (this.latestTravelHistory) {
+        const trip = this.latestTravelHistory;
+        Column({ space: 6 }) {
+          Text(`${trip.city}${trip.country ? ' · ' + trip.country : ''}`)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppColors.TEXT_PRIMARY)
+          Text(trip.isOngoing ? '进行中' : '已完成')
+            .fontSize(12)
+            .fontColor(trip.isOngoing ? AppColors.SUCCESS : AppColors.TEXT_SECONDARY)
+          Text(`行程 ${this.userDetail?.stats.totalTrips ?? 0} 次 · 累计 ${this.userDetail?.stats.totalDays ?? 0} 天`)
+            .fontSize(13)
+            .fontColor(AppColors.TEXT_SECONDARY)
+        }
+      } else {
+        Text(`已完成 ${this.userDetail?.stats.totalTrips ?? 0} 次行程，累计 ${this.userDetail?.stats.totalDays ?? 0} 天`) 
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+    .onClick(() => {
+      router.pushUrl({ url: `pages/${RouteConstants.TRAVEL_HISTORY}` });
+    })
+  }
+
+  @Builder
+  SocialLinks() {
+    Column({ space: 10 }) {
+      Text('社交链接')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.TEXT_PRIMARY)
+      const links = this.userDetail?.socialLinks ?? {};
+      const entries = Object.keys(links);
+      if (entries.length > 0) {
+        ForEach(entries, (key) => {
+          this.SocialLinkRow(key, links[key])
+        }, (key) => key)
+      } else {
+        Text('暂无社交链接，添加后便于伙伴联系你。')
+          .fontSize(13)
+          .fontColor(AppColors.TEXT_SECONDARY)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
+  }
+
+  @Builder
+  SocialLinkRow(label: string, url: string) {
+    Row({ space: 8 }) {
+      Text(label).fontSize(14).fontColor(AppColors.TEXT_SECONDARY).width(80)
+      Text(url)
+        .fontSize(14)
+        .fontColor(AppColors.PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+    }
+  }
+
+  @Builder
+  HelpSupport() {
+    Column({ space: 8 }) {
+      Text('帮助与客服')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppColors.TEXT_PRIMARY)
+      Text('遇到问题？查看常见问题或联系支持团队。')
+        .fontSize(13)
+        .fontColor(AppColors.TEXT_SECONDARY)
+      Button('联系客服')
+        .height(40)
+        .borderRadius(10)
+        .backgroundColor(AppColors.PRIMARY_LIGHT)
+        .fontColor(AppColors.PRIMARY)
+        .onClick(() => { router.pushUrl({ url: `pages/${RouteConstants.SETTINGS}` }); })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .margin({ left: 16, right: 16, bottom: 16 })
+    .backgroundColor(AppColors.WHITE)
+    .borderRadius(12)
+    .border({ width: 1, color: AppColors.BORDER_LIGHT })
   }
 
   @Builder

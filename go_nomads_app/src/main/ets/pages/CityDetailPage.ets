@@ -3,6 +3,7 @@ import { CityService } from '../services/CityService';
 import { AppColors } from '../common/constants/AppColors';
 import { RouteConstants } from '../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
+import clipboard from '@ohos.clipboard';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'CityDetailPage';
@@ -22,6 +23,8 @@ struct CityDetailPage {
   @State currentTabIndex: number = 0;
   @State isFavorited: boolean = false;
   @State isFavoriteLoading: boolean = false;
+  @State shareUrl: string = '';
+  @State shareDescription: string = '';
 
   private cityId: string = '';
   private cityName: string = '';
@@ -35,6 +38,49 @@ struct CityDetailPage {
     }
     this.loadCityDetail();
     this.checkFavoriteStatus();
+  }
+
+  private buildShareContent(city: City): void {
+    const title = city.country ? `${city.name}, ${city.country} - Go Nomads` : `${city.name} - Go Nomads`;
+    const descParts: string[] = [];
+
+    if (city.overallScore && city.overallScore > 0) {
+      descParts.push(`⭐ 综合评分: ${city.overallScore.toFixed(1)}/5.0`);
+    }
+    if (city.temperature !== undefined && city.temperature !== null) {
+      descParts.push(`🌡️ ${city.temperature}°C`);
+    }
+    if (city.population) {
+      descParts.push(`👥 人口: ${city.population}`);
+    }
+    if (city.averageCost !== undefined && city.averageCost !== null && city.averageCost > 0) {
+      descParts.push(`💰 月均消费: $${city.averageCost}`);
+    }
+    if (city.safetyScore && city.safetyScore > 0) {
+      descParts.push(`🛡️ 安全: ${city.safetyScore.toFixed(1)}/5.0`);
+    }
+    if (city.internetScore && city.internetScore > 0) {
+      descParts.push(`📶 网速: ${city.internetScore.toFixed(1)}/5.0`);
+    }
+    if (city.description) {
+      descParts.push(`\n${city.description}`);
+    }
+
+    this.shareUrl = `https://nomadcities.app/cities/${city.id}`;
+    this.shareDescription = `${title}\n${descParts.join('\n')}`;
+  }
+
+  private async copyShareLink(): Promise<void> {
+    if (!this.city) {
+      return;
+    }
+    this.buildShareContent(this.city);
+    try {
+      await clipboard.setData(this.shareUrl);
+      hilog.info(DOMAIN, TAG, '✅ 分享链接已复制: %{public}s', this.shareUrl);
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, '❌ 复制分享链接失败: %{public}s', (err as Error).message);
+    }
   }
 
   async loadCityDetail(): Promise<void> {
@@ -111,8 +157,8 @@ struct CityDetailPage {
             .borderRadius(18)
             .backgroundColor(AppColors.PRIMARY)
             .fontColor('#FFFFFF')
-            .onClick(() => {
-              this.loadCityDetail();
+            .onClick(async () => {
+              await this.loadCityDetail();
             })
         }
         .width('100%')
@@ -126,6 +172,9 @@ struct CityDetailPage {
 
             // 摘要卡片
             this.SummaryCard()
+
+            // AI 旅行计划入口
+            this.AiTravelPlanEntry()
 
             // Tab 栏
             this.TabSection()
@@ -169,15 +218,15 @@ struct CityDetailPage {
       SymbolGlyph($r('sys.symbol.share'))
         .fontSize(22)
         .fontColor([AppColors.TEXT_PRIMARY])
-        .onClick(() => {
-          // TODO: 分享功能
+        .onClick(async () => {
+          await this.copyShareLink();
         })
 
       Text(this.isFavorited ? '❤️' : '🤍')
         .fontSize(22)
         .margin({ left: 12 })
-        .onClick(() => {
-          this.toggleFavorite();
+        .onClick(async () => {
+          await this.toggleFavorite();
         })
     }
     .width('100%')
@@ -278,6 +327,47 @@ struct CityDetailPage {
         .fontColor(AppColors.TEXT_SECONDARY)
     }
     .alignItems(HorizontalAlign.Center)
+  }
+
+  // ============================================================
+  // AI 旅行计划入口（对齐 Flutter 城市详情页 FAB 语义）
+  // ============================================================
+  @Builder
+  AiTravelPlanEntry() {
+    Row({ space: 10 }) {
+      Text('✨')
+        .fontSize(18)
+
+      Column({ space: 2 }) {
+        Text('AI Travel Plan')
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AppColors.WHITE)
+        Text('基于你的偏好智能生成行程')
+          .fontSize(12)
+          .fontColor('#FFFFFFCC')
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      SymbolGlyph($r('sys.symbol.arrow_right'))
+        .fontSize(16)
+        .fontColor([AppColors.WHITE])
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+    .margin({ left: 16, right: 16, top: 12 })
+    .borderRadius(12)
+    .backgroundColor(AppColors.PRIMARY)
+    .onClick(() => {
+      router.pushUrl({
+        url: `pages/${RouteConstants.CREATE_TRAVEL_PLAN}`,
+        params: {
+          cityId: this.cityId || this.city?.id || '',
+          cityName: this.city?.name || this.cityName || '',
+        },
+      });
+    })
   }
 
   // ============================================================
@@ -605,7 +695,14 @@ struct CityDetailPage {
         .fontColor(AppColors.PRIMARY)
         .fontSize(15)
         .onClick(() => {
-          // TODO: AI 生成附近城市
+          router.pushUrl({
+            url: `pages/${RouteConstants.AI_CHAT}`,
+            params: {
+              cityId: this.cityId,
+              cityName: this.cityName || this.city?.name || '',
+              prompt: `请推荐 ${this.cityName || this.city?.name || '当前城市'} 周边适合数字游民的城市，并给出简要原因。`,
+            },
+          });
         })
     }
     .padding({ top: 8, bottom: 16 })

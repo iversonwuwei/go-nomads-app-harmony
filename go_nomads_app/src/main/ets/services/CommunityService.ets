@@ -1,0 +1,75 @@
+import { CityRecommendation, Question, TripReport } from '../models/Community';
+
+export class CommunityService {
+  private static instance: CommunityService | null = null;
+  private tripReports: TripReport[] = [];
+  private recommendations: CityRecommendation[] = [];
+  private questions: Question[] = [];
+
+  private constructor() {
+    this.tripReports = [
+      {
+        id: '1', userId: 'u1', userName: 'Sarah Chen', city: 'Chiang Mai', country: 'Thailand',
+        overallRating: 4.8, title: '在清迈的一个月 - 数字游民天堂',
+        content: '生活成本低、网速快、社区活跃，适合远程工作。',
+        likes: 234, comments: 45, isLiked: false, createdAt: new Date(Date.now() - 25 * 86400000).toISOString(),
+      },
+      {
+        id: '2', userId: 'u2', userName: 'Marco Silva', city: 'Lisbon', country: 'Portugal',
+        overallRating: 4.5, title: '里斯本 - 欧洲游民中心',
+        content: '文化丰富、活动多、交通方便，住宿成本偏高。',
+        likes: 189, comments: 32, isLiked: false, createdAt: new Date(Date.now() - 55 * 86400000).toISOString(),
+      },
+    ];
+
+    this.recommendations = [
+      { id: 'r1', city: 'Chiang Mai', name: 'Punspace Nimman', category: 'Coworking', description: '网络稳定，氛围友好。', rating: 4.7, reviewCount: 120, tags: ['WiFi', '24h'], upvotes: 96 },
+      { id: 'r2', city: 'Lisbon', name: 'Hello, Kristof', category: 'Cafe', description: '适合办公的精品咖啡店。', rating: 4.6, reviewCount: 88, tags: ['Coffee', 'Quiet'], upvotes: 71 },
+    ];
+
+    this.questions = [
+      { id: 'q1', userId: 'u3', userName: 'Amy', city: 'Bali', title: '巴厘岛雨季还适合办公吗？', content: '主要担心网速和通勤。', tags: ['Weather', 'Internet'], upvotes: 32, answerCount: 6, isUpvoted: false, createdAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+      { id: 'q2', userId: 'u4', userName: 'Leo', city: 'Tokyo', title: '东京长期合租推荐区域？', content: '希望靠近联合办公空间。', tags: ['Housing'], upvotes: 24, answerCount: 4, isUpvoted: false, createdAt: new Date(Date.now() - 6 * 86400000).toISOString() },
+    ];
+  }
+
+  static getInstance(): CommunityService {
+    if (!CommunityService.instance) {
+      CommunityService.instance = new CommunityService();
+    }
+    return CommunityService.instance;
+  }
+
+  async getTripReports(): Promise<TripReport[]> {
+    return [...this.tripReports];
+  }
+
+  async getRecommendations(category: string = 'All'): Promise<CityRecommendation[]> {
+    if (category === 'All') {
+      return [...this.recommendations];
+    }
+    return this.recommendations.filter((item) => item.category === category);
+  }
+
+  async getQuestions(): Promise<Question[]> {
+    return [...this.questions];
+  }
+
+  toggleLikeTripReport(id: string): TripReport[] {
+    this.tripReports = this.tripReports.map((item) => {
+      if (item.id !== id) return item;
+      const nextLiked = !item.isLiked;
+      return { ...item, isLiked: nextLiked, likes: nextLiked ? item.likes + 1 : item.likes - 1 };
+    });
+    return [...this.tripReports];
+  }
+
+  toggleUpvoteQuestion(id: string): Question[] {
+    this.questions = this.questions.map((item) => {
+      if (item.id !== id) return item;
+      const nextUpvoted = !item.isUpvoted;
+      return { ...item, isUpvoted: nextUpvoted, upvotes: nextUpvoted ? item.upvotes + 1 : item.upvotes - 1 };
+    });
+    return [...this.questions];
+  }
+}

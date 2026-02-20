@@ -1,22 +1,12 @@
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
-import { HttpService } from '../services/HttpService';
-import { ApiConfig } from '../common/constants/ApiConfig';
+import { NotificationService } from '../services/NotificationService';
+import { AppNotification } from '../models/Notification';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'NotificationsPage';
 const DOMAIN = 0x0001;
-
-interface AppNotification {
-  id: string;
-  type: string; // 'meetup' | 'message' | 'system' | 'review' | 'follow'
-  title: string;
-  body: string;
-  isRead: boolean;
-  createdAt: string;
-  actionUrl?: string;
-}
 
 /**
  * 通知页面 — 对应 Flutter notifications_page.dart
@@ -32,13 +22,17 @@ struct NotificationsPage {
   async loadNotifications(): Promise<void> {
     this.isLoading = true;
     try {
-      const httpService = HttpService.getInstance();
-      this.notifications = await httpService.get<AppNotification[]>(ApiConfig.NOTIFICATIONS_ENDPOINT);
-      // 标记全部已读
+      const svc = NotificationService.getInstance();
+      this.notifications = await svc.getAll();
       AppStorage.set(AppStorageKeys.UNREAD_NOTIFICATION_COUNT, 0);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ %{public}s', JSON.stringify(err));
     } finally { this.isLoading = false; }
+  }
+
+  markAllRead(): void {
+    this.notifications = this.notifications.map((n) => ({ ...n, isRead: true }));
+    AppStorage.set(AppStorageKeys.UNREAD_NOTIFICATION_COUNT, 0);
   }
 
   build() {
@@ -49,7 +43,7 @@ struct NotificationsPage {
         Text('通知').fontSize(18).fontWeight(FontWeight.Medium)
           .fontColor(AppColors.TEXT_PRIMARY).layoutWeight(1).textAlign(TextAlign.Center)
         Text('全部已读').fontSize(14).fontColor(AppColors.PRIMARY)
-          .onClick(() => { /* 标记全部已读 */ })
+          .onClick(() => { this.markAllRead(); })
       }
       .width('100%').height(56).padding({ left: 16, right: 16 })
       .backgroundColor(AppColors.CARD_BACKGROUND)

@@ -92,7 +92,7 @@ struct EditSkillsPage {
           .fontColor(AppColors.TEXT_PRIMARY).layoutWeight(1).textAlign(TextAlign.Center)
         Button('保存').height(34).fontSize(14).borderRadius(17)
           .backgroundColor(AppColors.PRIMARY).fontColor('#FFFFFF')
-          .enabled(!this.isSaving).onClick(() => { this.save(); })
+          .enabled(!this.isSaving).onClick(async () => { await this.save(); })
       }
       .width('100%').height(56).padding({ left: 16, right: 16 })
       .backgroundColor(AppColors.CARD_BACKGROUND)
@@ -133,7 +133,7 @@ struct EditSkillsPage {
                   .borderRadius(14)
                   .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                   .margin({ right: 6, bottom: 8 })
-                  .onClick(() => { this.toggleSkill(skill); })
+                  .onClick(async () => { await this.toggleSkill(skill); })
               }, (s: string) => s)
             }
 

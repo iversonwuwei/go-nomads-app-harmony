@@ -1,0 +1,411 @@
+{
+  "total_page_files": 50,
+  "page_files": [
+    "pages/AIChatPage.ets",
+    "pages/AddCostPage.ets",
+    "pages/AddCoworkingPage.ets",
+    "pages/AddProsConsPage.ets",
+    "pages/AddReviewPage.ets",
+    "pages/ChatPage.ets",
+    "pages/CityChatPage.ets",
+    "pages/CityDetailPage.ets",
+    "pages/CitySearchPage.ets",
+    "pages/CommunityGuidelinesPage.ets",
+    "pages/CommunityPage.ets",
+    "pages/ConversationListPage.ets",
+    "pages/CoworkingDetailPage.ets",
+    "pages/CoworkingListPage.ets",
+    "pages/CreateMeetupPage.ets",
+    "pages/CreateTravelPlanPage.ets",
+    "pages/DirectChatPage.ets",
+    "pages/EditBasicInfoPage.ets",
+    "pages/EditInterestsPage.ets",
+    "pages/EditSkillsPage.ets",
+    "pages/EditSocialLinksPage.ets",
+    "pages/FavoritesPage.ets",
+    "pages/GlobalMapPage.ets",
+    "pages/HotelDetailPage.ets",
+    "pages/HotelListPage.ets",
+    "pages/Index.ets",
+    "pages/InnovationDetailPage.ets",
+    "pages/InnovationListPage.ets",
+    "pages/LoginPage.ets",
+    "pages/MainPage.ets",
+    "pages/MeetupDetailPage.ets",
+    "pages/MembershipPlanPage.ets",
+    "pages/MyMeetupsPage.ets",
+    "pages/NotificationsPage.ets",
+    "pages/PrivacyPolicyPage.ets",
+    "pages/ProfileEditPage.ets",
+    "pages/RegisterPage.ets",
+    "pages/SettingsPage.ets",
+    "pages/SplashPage.ets",
+    "pages/TermsOfServicePage.ets",
+    "pages/TravelHistoryPage.ets",
+    "pages/TravelPlanPage.ets",
+    "pages/UserProfilePage.ets",
+    "pages/VisitedPlacesPage.ets",
+    "pages/tabs/CityListTab.ets",
+    "pages/tabs/ConversationListTab.ets",
+    "pages/tabs/HomeTab.ets",
+    "pages/tabs/MeetupListTab.ets",
+    "pages/tabs/NotificationsTab.ets",
+    "pages/tabs/ProfileTab.ets"
+  ],
+  "marker_hits": [
+    {
+      "file": "pages/AIChatPage.ets",
+      "line": 285,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '问我任何旅行相关的问题...', text: this.inputText })"
+    },
+    {
+      "file": "pages/AddCostPage.ets",
+      "line": 69,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.amount, placeholder: '金额' })"
+    },
+    {
+      "file": "pages/AddCostPage.ets",
+      "line": 72,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.currency, placeholder: '币种，例如 USD' })"
+    },
+    {
+      "file": "pages/AddCostPage.ets",
+      "line": 75,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.category, placeholder: '分类，例如 accommodation' })"
+    },
+    {
+      "file": "pages/AddCostPage.ets",
+      "line": 78,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.note, placeholder: '备注' })"
+    },
+    {
+      "file": "pages/AddCoworkingPage.ets",
+      "line": 61,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.name, placeholder: '名称' })"
+    },
+    {
+      "file": "pages/AddCoworkingPage.ets",
+      "line": 64,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.city, placeholder: '城市' })"
+    },
+    {
+      "file": "pages/AddCoworkingPage.ets",
+      "line": 67,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.address, placeholder: '地址' })"
+    },
+    {
+      "file": "pages/AddCoworkingPage.ets",
+      "line": 70,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.wifiMbps, placeholder: '网速 Mbps' })"
+    },
+    {
+      "file": "pages/AddProsConsPage.ets",
+      "line": 69,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.text, placeholder: this.isPro ? '请输入优点内容' : '请输入挑战内容' })"
+    },
+    {
+      "file": "pages/AddReviewPage.ets",
+      "line": 64,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.rating, placeholder: '评分 1-5' })"
+    },
+    {
+      "file": "pages/AddReviewPage.ets",
+      "line": 67,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.title, placeholder: '标题' })"
+    },
+    {
+      "file": "pages/AddReviewPage.ets",
+      "line": 70,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.content, placeholder: '内容' })"
+    },
+    {
+      "file": "pages/ChatPage.ets",
+      "line": 322,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '输入消息...', text: this.inputText })"
+    },
+    {
+      "file": "pages/CitySearchPage.ets",
+      "line": 78,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.query, placeholder: '输入城市名...' })"
+    },
+    {
+      "file": "pages/CoworkingListPage.ets",
+      "line": 78,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '搜索办公空间...', text: this.searchText })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 293,
+      "marker": "placeholder",
+      "text": "TextArea({ text: this.description, placeholder: '介绍一下你的聚会活动...' })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 303,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.startDate, placeholder: 'YYYY-MM-DD' })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 310,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.startTime, placeholder: 'HH:MM' })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 319,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.endTime, placeholder: 'HH:MM' })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 326,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.maxCapacity, placeholder: '不限' })"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 376,
+      "marker": "placeholder",
+      "text": "Field(label: string, value: string, placeholder: string, onChange: (v: string) => void) {"
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "line": 379,
+      "marker": "placeholder",
+      "text": "TextInput({ text: value, placeholder: placeholder })"
+    },
+    {
+      "file": "pages/CreateTravelPlanPage.ets",
+      "line": 265,
+      "marker": "placeholder",
+      "text": "FormField(label: string, value: string, onChange: (v: string) => void, placeholder: string) {"
+    },
+    {
+      "file": "pages/CreateTravelPlanPage.ets",
+      "line": 271,
+      "marker": "placeholder",
+      "text": "TextInput({ text: value, placeholder: placeholder })"
+    },
+    {
+      "file": "pages/EditBasicInfoPage.ets",
+      "line": 68,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.name, placeholder: '姓名' })"
+    },
+    {
+      "file": "pages/EditBasicInfoPage.ets",
+      "line": 71,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.bio, placeholder: '简介' })"
+    },
+    {
+      "file": "pages/EditBasicInfoPage.ets",
+      "line": 74,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.currentCity, placeholder: '当前城市' })"
+    },
+    {
+      "file": "pages/EditBasicInfoPage.ets",
+      "line": 77,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.currentCountry, placeholder: '当前国家' })"
+    },
+    {
+      "file": "pages/EditInterestsPage.ets",
+      "line": 103,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '添加自定义兴趣', text: this.customInterest })"
+    },
+    {
+      "file": "pages/EditSkillsPage.ets",
+      "line": 111,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '添加自定义技能', text: this.customSkill })"
+    },
+    {
+      "file": "pages/EditSocialLinksPage.ets",
+      "line": 131,
+      "marker": "placeholder",
+      "text": "LinkField(label: string, value: string, placeholder: string, onChange: (v: string) => void) {"
+    },
+    {
+      "file": "pages/EditSocialLinksPage.ets",
+      "line": 134,
+      "marker": "placeholder",
+      "text": "TextInput({ text: value, placeholder: placeholder })"
+    },
+    {
+      "file": "pages/GlobalMapPage.ets",
+      "line": 72,
+      "marker": "placeholder",
+      "text": "TextInput({ text: this.keyword, placeholder: '搜索城市 / 国家' })"
+    },
+    {
+      "file": "pages/HotelListPage.ets",
+      "line": 80,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '搜索酒店...', text: this.searchText })"
+    },
+    {
+      "file": "pages/InnovationListPage.ets",
+      "line": 55,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '搜索项目...', text: this.searchText })"
+    },
+    {
+      "file": "pages/LoginPage.ets",
+      "line": 97,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '邮箱', text: this.email })"
+    },
+    {
+      "file": "pages/LoginPage.ets",
+      "line": 110,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '密码', text: this.password })"
+    },
+    {
+      "file": "pages/ProfileEditPage.ets",
+      "line": 177,
+      "marker": "placeholder",
+      "text": "FormTextArea(label: string, value: string, onChange: (v: string) => void, placeholder: string) {"
+    },
+    {
+      "file": "pages/ProfileEditPage.ets",
+      "line": 180,
+      "marker": "placeholder",
+      "text": "TextArea({ text: value, placeholder: placeholder })"
+    },
+    {
+      "file": "pages/RegisterPage.ets",
+      "line": 103,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '用户名', text: this.userName })"
+    },
+    {
+      "file": "pages/RegisterPage.ets",
+      "line": 115,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '邮箱', text: this.email })"
+    },
+    {
+      "file": "pages/RegisterPage.ets",
+      "line": 128,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '创建密码', text: this.password })"
+    },
+    {
+      "file": "pages/RegisterPage.ets",
+      "line": 141,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '确认密码', text: this.confirmPassword })"
+    },
+    {
+      "file": "pages/VisitedPlacesPage.ets",
+      "line": 470,
+      "marker": "即将上线",
+      "text": "this.showActionMessage('备注编辑即将上线');"
+    },
+    {
+      "file": "pages/VisitedPlacesPage.ets",
+      "line": 481,
+      "marker": "即将上线",
+      "text": "this.showActionMessage('地图查看即将上线');"
+    },
+    {
+      "file": "pages/tabs/CityListTab.ets",
+      "line": 153,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: '搜索城市或国家', text: this.searchQuery })"
+    },
+    {
+      "file": "pages/tabs/CityListTab.ets",
+      "line": 158,
+      "marker": "placeholder",
+      "text": ".placeholderColor(AppColors.TEXT_TERTIARY)"
+    },
+    {
+      "file": "pages/tabs/HomeTab.ets",
+      "line": 234,
+      "marker": "placeholder",
+      "text": "TextInput({ placeholder: 'Search cities... (支持中英文搜索)', text: this.searchQuery })"
+    },
+    {
+      "file": "pages/tabs/MeetupListTab.ets",
+      "line": 242,
+      "marker": "Placeholder",
+      "text": "// Placeholder"
+    }
+  ],
+  "submit_audit": [
+    {
+      "file": "pages/AddCostPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/AddCoworkingPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/AddProsConsPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/AddReviewPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/CreateMeetupPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/CreateTravelPlanPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/EditBasicInfoPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/EditInterestsPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/EditSkillsPage.ets",
+      "has_state": true,
+      "has_guard": true
+    },
+    {
+      "file": "pages/EditSocialLinksPage.ets",
+      "has_state": true,
+      "has_guard": true
+    }
+  ],
+  "async_without_try": [],
+  "onclick_potential_async": []
+}

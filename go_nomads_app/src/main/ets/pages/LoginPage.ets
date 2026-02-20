@@ -141,7 +141,7 @@ struct LoginPage {
               .fontColor(AppColors.PRIMARY)
               .fontWeight(FontWeight.Bold)
               .onClick(() => {
-                // TODO: 忘记密码
+                this.errorMessage = '请先联系管理员或使用注册邮箱重新登录';
               })
           }
           .width('100%')
@@ -307,7 +307,7 @@ struct LoginPage {
     .border({ width: 1, color: AppColors.GREY200 })
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
-      // TODO: social login
+      this.errorMessage = `${label} 登录将在后续版本接入，请先使用邮箱登录`; 
     })
   }
 

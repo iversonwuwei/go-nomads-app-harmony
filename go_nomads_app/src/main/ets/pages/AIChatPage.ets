@@ -46,6 +46,10 @@ struct AIChatPage {
   @State messages: AiMessage[] = [];
   @State inputText: string = '';
   @State isWaiting: boolean = false;
+  @State hasError: boolean = false;
+  @State errorMsg: string = '';
+  @State actionMsg: string = '';
+  @StorageProp(AppStorageKeys.IS_AUTHENTICATED) isAuthenticated: boolean = false;
   private scroller: Scroller = new Scroller();
   private initialPrompt: string = '';
 
@@ -62,12 +66,19 @@ struct AIChatPage {
   async sendMessage(): Promise<void> {
     const text = this.inputText.trim();
     if (!text || this.isWaiting) return;
+    if (!this.isAuthenticated) {
+      this.actionMsg = '请先登录后再使用 AI 助手';
+      return;
+    }
 
     // 添加用户消息
     const userMsg: AiMessage = { role: 'user', content: text, timestamp: Date.now() };
     this.messages = this.messages.concat([userMsg]);
     this.inputText = '';
     this.isWaiting = true;
+    this.hasError = false;
+    this.errorMsg = '';
+    this.actionMsg = '';
     this.scrollToBottom();
 
     try {
@@ -81,16 +92,19 @@ struct AIChatPage {
       }
       const reqBody = new AiChatRequestBody();
       reqBody.messages = msgItems;
-      const response = await httpService.post<AiChatResponse>(ApiConfig.AI_CHAT_ENDPOINT, reqBody);
+      const response = await httpService.post<Object>(ApiConfig.AI_CHAT_ENDPOINT, reqBody);
+      const content = this.extractAssistantContent(response);
 
       const assistantMsg: AiMessage = {
         role: 'assistant',
-        content: response.message ?? '抱歉，我无法回答这个问题。',
+        content: content,
         timestamp: Date.now(),
       };
       this.messages = this.messages.concat([assistantMsg]);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ AI 请求失败: %{public}s', JSON.stringify(err));
+      this.hasError = true;
+      this.errorMsg = (err as Error).message;
       const errorMsg: AiMessage = {
         role: 'assistant',
         content: '网络错误，请稍后重试。',
@@ -123,10 +137,22 @@ struct AIChatPage {
       .backgroundColor(AppColors.CARD_BACKGROUND)
 
       // 消息区域
-      if (this.messages.length === 0) {
+      if (!this.isAuthenticated) {
+        this.LoginPrompt()
+      } else if (this.messages.length === 0) {
         this.WelcomeView()
       } else {
         this.MessageList()
+      }
+
+      if (this.actionMsg.length > 0) {
+        Text(this.actionMsg)
+          .fontSize(12)
+          .fontColor(AppColors.ERROR)
+          .backgroundColor('#FEE2E2')
+          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .borderRadius(8)
+          .margin({ left: 12, right: 12, bottom: 6 })
       }
 
       // 输入栏
@@ -153,6 +179,28 @@ struct AIChatPage {
       .margin({ top: 16 })
     }
     .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center).padding({ left: 32, right: 32 })
+  }
+
+  @Builder
+  LoginPrompt() {
+    Column({ space: 12 }) {
+      Text('🤖').fontSize(46)
+      Text('登录后可使用 AI 助手')
+        .fontSize(15)
+        .fontColor(AppColors.TEXT_SECONDARY)
+      Button('去登录')
+        .height(38)
+        .borderRadius(19)
+        .backgroundColor(AppColors.PRIMARY)
+        .fontColor(AppColors.WHITE)
+        .onClick(() => {
+          router.pushUrl({ url: 'pages/LoginPage' });
+        })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
@@ -223,6 +271,10 @@ struct AIChatPage {
         .backgroundColor(AppColors.CARD_BACKGROUND)
         .borderRadius({ topLeft: 4, topRight: 16, bottomLeft: 16, bottomRight: 16 })
         .constraintSize({ maxWidth: '70%' })
+
+      Text(this.formatTime(msg.timestamp))
+        .fontSize(10)
+        .fontColor(AppColors.TEXT_TERTIARY)
     }
     .width('100%').padding({ top: 4, bottom: 4 }).alignItems(VerticalAlign.Top)
   }
@@ -245,5 +297,37 @@ struct AIChatPage {
     .width('100%').padding({ left: 12, right: 12, top: 8, bottom: 8 })
     .backgroundColor(AppColors.CARD_BACKGROUND)
     .shadow({ radius: 4, color: '#00000008', offsetX: 0, offsetY: -1 })
+  }
+
+  private extractAssistantContent(response: Object): string {
+    if (typeof response === 'string') {
+      return response.length > 0 ? response : '抱歉，我暂时无法回答这个问题。';
+    }
+    const record = response as Record<string, Object>;
+    const message = record['message'];
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+    const content = record['content'];
+    if (typeof content === 'string' && content.length > 0) {
+      return content;
+    }
+    const data = record['data'] as Record<string, Object> | undefined;
+    if (data) {
+      const dataContent = data['content'];
+      if (typeof dataContent === 'string' && dataContent.length > 0) {
+        return dataContent;
+      }
+      const dataMessage = data['message'];
+      if (typeof dataMessage === 'string' && dataMessage.length > 0) {
+        return dataMessage;
+      }
+    }
+    return '抱歉，我暂时无法回答这个问题。';
+  }
+
+  private formatTime(ts: number): string {
+    const date = new Date(ts);
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 }

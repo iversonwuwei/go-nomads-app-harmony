@@ -1,6 +1,6 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ApiConfig } from '../common/constants/ApiConfig';
-import { User, TravelStats, UserSkillInfo, UserInterestInfo } from '../models/User';
+import { User, TravelStats, UserSkillInfo, UserInterestInfo, Badge } from '../models/User';
 import { HttpService, RequestOptions } from './HttpService';
 
 const TAG = 'UserService';
@@ -229,7 +229,7 @@ export class UserService {
       skills: this.parseSkills(json['skills'] as Object),
       interests: this.parseInterests(json['interests'] as Object),
       socialLinks: socialLinks,
-      badges: [],
+      badges: this.parseBadges(json['badges'] as Object),
       stats: stats,
       joinedDate: (json['createdAt'] as string) ?? '',
       isVerified: (json['isVerified'] as boolean) ?? false,
@@ -268,6 +268,25 @@ export class UserService {
         category: item['category'] as string | undefined,
       };
       arr.push(interest);
+    }
+
+    private parseBadges(val: Object | undefined): Badge[] {
+      if (!val || !(val instanceof Array)) {
+        return [];
+      }
+      const arr: Badge[] = [];
+      const objArr = val as Object[];
+      for (let i = 0; i < objArr.length; i++) {
+        const item = objArr[i] as Record<string, Object>;
+        const badge: Badge = {
+          id: (item['id'] as string) ?? i.toString(),
+          name: (item['name'] as string) ?? '',
+          description: item['description'] as string | undefined,
+          icon: item['icon'] as string | undefined,
+        };
+        arr.push(badge);
+      }
+      return arr;
     }
     return arr;
   }

@@ -1,6 +1,6 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ApiConfig } from '../common/constants/ApiConfig';
-import { Meetup, MeetupType, MeetupOrganizerInfo, MeetupCityInfo } from '../models/Meetup';
+import { Meetup, MeetupType, MeetupOrganizerInfo, MeetupCityInfo, MeetupParticipantInfo } from '../models/Meetup';
 import { HttpService, RequestOptions } from './HttpService';
 
 const TAG = 'MeetupService';
@@ -357,7 +357,42 @@ export class MeetupService {
       followerCount: (json['followerCount'] as number) ?? 0,
       city: cityInfo,
       organizer: organizerInfo,
+      participants: this.parseParticipants(json['participants'] as Object),
     } as Meetup;
+  }
+
+  private parseParticipants(val: Object | undefined): MeetupParticipantInfo[] {
+    if (!val || !(val instanceof Array)) {
+      return [];
+    }
+
+    const arr = val as Object[];
+    const result: MeetupParticipantInfo[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const participant = this.parseParticipant(arr[i] as Record<string, Object>);
+      result.push(participant);
+    }
+    return result;
+  }
+
+  private parseParticipant(json: Record<string, Object>): MeetupParticipantInfo {
+    const rawUser = json['user'] as Record<string, Object> | undefined;
+    const userName = (rawUser?.['name'] as string | undefined) ?? (json['name'] as string | undefined) ?? 'User';
+    const userEmail = (rawUser?.['email'] as string | undefined) ?? (json['email'] as string | undefined);
+    const userAvatar =
+      (rawUser?.['avatar'] as string | undefined) ??
+      (rawUser?.['avatarUrl'] as string | undefined) ??
+      (json['avatar'] as string | undefined) ??
+      (json['avatarUrl'] as string | undefined);
+    const rawUserId = (json['userId'] as string | undefined) ?? (rawUser?.['id'] as string | undefined) ?? '';
+
+    return {
+      id: (json['id'] as string | undefined) ?? rawUserId,
+      userId: rawUserId,
+      name: userName,
+      email: userEmail,
+      avatarUrl: userAvatar,
+    } as MeetupParticipantInfo;
   }
 
   private parseMeetupType(category: string | undefined): MeetupType {

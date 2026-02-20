@@ -18,6 +18,7 @@ const DOMAIN = 0x0001;
 struct FavoritesPage {
   @State favorites: City[] = [];
   @State isLoading: boolean = true;
+  @State isRefreshing: boolean = false;
   @StorageProp(AppStorageKeys.IS_AUTHENTICATED) isAuthenticated: boolean = false;
 
   aboutToAppear(): void {
@@ -25,13 +26,18 @@ struct FavoritesPage {
   }
 
   async loadFavorites(): Promise<void> {
-    this.isLoading = true;
+    if (!this.isRefreshing) {
+      this.isLoading = true;
+    }
     try {
       const httpService = HttpService.getInstance();
       this.favorites = await httpService.get<City[]>(ApiConfig.FAVORITES_ENDPOINT);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ %{public}s', JSON.stringify(err));
-    } finally { this.isLoading = false; }
+    } finally {
+      this.isLoading = false;
+      this.isRefreshing = false;
+    }
   }
 
   build() {
@@ -64,13 +70,20 @@ struct FavoritesPage {
           Text('浏览城市并点击收藏').fontSize(14).fontColor(AppColors.TEXT_TERTIARY)
         }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
       } else {
-        List() {
-          ForEach(this.favorites, (city: City) => {
-            ListItem() { this.CityItem(city) }
-          }, (city: City) => city.id)
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          List() {
+            ForEach(this.favorites, (city: City) => {
+              ListItem() { this.CityItem(city) }
+            }, (city: City) => city.id)
+          }
+          .padding({ left: 16, right: 16, top: 8 })
+          .divider({ strokeWidth: 0 }).edgeEffect(EdgeEffect.Spring)
         }
-        .layoutWeight(1).padding({ left: 16, right: 16, top: 8 })
-        .divider({ strokeWidth: 0 }).edgeEffect(EdgeEffect.Spring)
+        .layoutWeight(1)
+        .onRefreshing(() => {
+          this.isRefreshing = true;
+          this.loadFavorites();
+        })
       }
     }
     .width('100%').height('100%').backgroundColor(AppColors.BACKGROUND)

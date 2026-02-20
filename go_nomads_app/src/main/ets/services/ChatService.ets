@@ -87,15 +87,8 @@ export class ChatService {
    */
   async getChatRooms(): Promise<ChatRoom[]> {
     try {
-      const result = await this.httpService.get<Object[]>(ApiConfig.CHATS_ENDPOINT);
-
-      // 结果可能直接是数组或在 data 中
-      let items: Object[];
-      if (result instanceof Array) {
-        items = result as Object[];
-      } else {
-        items = [];
-      }
+      const result = await this.httpService.get<Object>(ApiConfig.CHATS_ENDPOINT);
+      const items = this.unwrapArray(result);
 
       const rooms = this.parseChatRoomList(items);
       hilog.info(DOMAIN, TAG, '✅ getChatRooms: %{public}d rooms', rooms.length);
@@ -115,7 +108,8 @@ export class ChatService {
       const result = await this.httpService.get<Object>(
         `${ApiConfig.CHATS_ENDPOINT}/${roomId}`
       );
-      return this.parseChatRoom(result as Record<string, Object>);
+      const payload = this.unwrapRecord(result);
+      return this.parseChatRoom(payload ?? (result as Record<string, Object>));
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ getChatRoomById failed: %{public}s', (err as Error).message);
       throw new Error((err as Error).message);
@@ -166,7 +160,8 @@ export class ChatService {
         `${ApiConfig.CHATS_ENDPOINT}/direct`,
         body
       );
-      return this.parseChatRoom(result as Record<string, Object>);
+      const payload = this.unwrapRecord(result);
+      return this.parseChatRoom(payload ?? (result as Record<string, Object>));
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ getOrCreateDirectChat failed: %{public}s', (err as Error).message);
       throw new Error((err as Error).message);
@@ -187,7 +182,8 @@ export class ChatService {
         `${ApiConfig.CHATS_ENDPOINT}/meetup`,
         body
       );
-      return this.parseChatRoom(result as Record<string, Object>);
+      const payload = this.unwrapRecord(result);
+      return this.parseChatRoom(payload ?? (result as Record<string, Object>));
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ getOrCreateMeetupChat failed: %{public}s', (err as Error).message);
       throw new Error((err as Error).message);
@@ -209,17 +205,12 @@ export class ChatService {
         'pageSize': pageSize.toString(),
       };
 
-      const result = await this.httpService.get<Object[]>(
+      const result = await this.httpService.get<Object>(
         `${ApiConfig.CHATS_ENDPOINT}/${roomId}/messages`,
         { queryParams: queryParams } as RequestOptions
       );
 
-      let items: Object[];
-      if (result instanceof Array) {
-        items = result as Object[];
-      } else {
-        items = [];
-      }
+      const items = this.unwrapArray(result);
 
       const messages = this.parseMessageList(items);
       hilog.info(DOMAIN, TAG, '✅ getMessages: %{public}d messages', messages.length);
@@ -246,7 +237,8 @@ export class ChatService {
         `${ApiConfig.CHATS_ENDPOINT}/${roomId}/messages`,
         body
       );
-      return this.parseMessage(result as Record<string, Object>);
+      const payload = this.unwrapRecord(result);
+      return this.parseMessage(payload ?? (result as Record<string, Object>));
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ sendMessage failed: %{public}s', (err as Error).message);
       throw new Error((err as Error).message);
@@ -286,16 +278,18 @@ export class ChatService {
   }
 
   private parseChatRoom(json: Record<string, Object>): ChatRoom {
+    const lastMessageRaw = this.readString(json, 'lastMessage') || this.readString(json, 'lastContent');
+    const lastTimeRaw = this.readString(json, 'lastMessageTime') || this.readString(json, 'lastMessageAt');
     return {
-      id: (json['id'] as string) ?? '',
-      name: (json['name'] as string) ?? (json['title'] as string) ?? '',
-      type: (json['type'] as string) ?? 'group',
-      lastMessage: json['lastMessage'] as string | undefined,
-      lastMessageTime: json['lastMessageTime'] as string | undefined,
-      unreadCount: (json['unreadCount'] as number) ?? 0,
-      avatarUrl: json['avatarUrl'] as string | undefined,
-      participantCount: json['participantCount'] as number | undefined,
-      meetupId: json['meetupId'] as string | undefined,
+      id: this.readString(json, 'id'),
+      name: this.readString(json, 'name') || this.readString(json, 'title') || '聊天',
+      type: this.readString(json, 'type') || 'group',
+      lastMessage: lastMessageRaw.length > 0 ? lastMessageRaw : undefined,
+      lastMessageTime: lastTimeRaw.length > 0 ? lastTimeRaw : undefined,
+      unreadCount: this.readNumber(json, 'unreadCount', 0),
+      avatarUrl: this.readString(json, 'avatarUrl') || this.readString(json, 'avatar') || undefined,
+      participantCount: this.readNumber(json, 'participantCount', 0) || undefined,
+      meetupId: this.readString(json, 'meetupId') || undefined,
     } as ChatRoom;
   }
 
@@ -312,17 +306,98 @@ export class ChatService {
   }
 
   private parseMessage(json: Record<string, Object>): ChatMessage {
+    const createdAt = this.readString(json, 'createdAt') || this.readString(json, 'sentAt') || new Date().toISOString();
     return {
-      id: (json['id'] as string) ?? '',
-      roomId: (json['roomId'] as string) ?? (json['chatRoomId'] as string) ?? '',
-      senderId: (json['senderId'] as string) ?? (json['userId'] as string) ?? '',
-      senderName: (json['senderName'] as string) ?? (json['userName'] as string) ?? '',
-      senderAvatar: json['senderAvatar'] as string | undefined,
-      content: (json['content'] as string) ?? (json['message'] as string) ?? '',
-      createdAt: (json['createdAt'] as string) ?? '',
-      replyToId: json['replyToId'] as string | undefined,
-      isDeleted: (json['isDeleted'] as boolean) ?? false,
+      id: this.readString(json, 'id') || `msg_${Date.now()}`,
+      roomId: this.readString(json, 'roomId') || this.readString(json, 'chatRoomId'),
+      senderId: this.readString(json, 'senderId') || this.readString(json, 'userId'),
+      senderName: this.readString(json, 'senderName') || this.readString(json, 'userName') || '用户',
+      senderAvatar: this.readString(json, 'senderAvatar') || this.readString(json, 'avatarUrl') || undefined,
+      content: this.readString(json, 'content') || this.readString(json, 'message'),
+      createdAt: createdAt,
+      replyToId: this.readString(json, 'replyToId') || undefined,
+      isDeleted: this.readBoolean(json, 'isDeleted', false),
     } as ChatMessage;
+  }
+
+  private readString(source: Record<string, Object> | null, key: string): string {
+    if (!source) return '';
+    const value = source[key];
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    return '';
+  }
+
+  private readNumber(source: Record<string, Object> | null, key: string, fallback: number): number {
+    if (!source) return fallback;
+    const value = source[key];
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+  }
+
+  private readBoolean(source: Record<string, Object> | null, key: string, fallback: boolean): boolean {
+    if (!source) return fallback;
+    const value = source[key];
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return fallback;
+  }
+
+  private tryRecord(value: Object | undefined): Record<string, Object> | null {
+    if (!value) return null;
+    const obj = value as Record<string, Object>;
+    return obj ?? null;
+  }
+
+  private tryArray(value: Object | undefined): Object[] {
+    if (value instanceof Array) {
+      return value as Object[];
+    }
+    return [];
+  }
+
+  private unwrapRecord(payload: Object): Record<string, Object> | null {
+    const root = this.tryRecord(payload);
+    if (!root) return null;
+    const data = root['data'];
+    if (data) {
+      const dataRecord = this.tryRecord(data as Object);
+      if (dataRecord) return dataRecord;
+    }
+    const result = root['result'];
+    if (result) {
+      const resultRecord = this.tryRecord(result as Object);
+      if (resultRecord) return resultRecord;
+    }
+    return root;
+  }
+
+  private unwrapArray(payload: Object): Object[] {
+    if (payload instanceof Array) {
+      return payload as Object[];
+    }
+    const root = this.tryRecord(payload);
+    if (!root) return [];
+
+    const fromDataDirect = this.tryArray(root['data'] as Object | undefined);
+    if (fromDataDirect.length > 0) return fromDataDirect;
+
+    const data = this.tryRecord(root['data'] as Object | undefined);
+    const dataItems = this.tryArray(data?.['items'] as Object | undefined);
+    if (dataItems.length > 0) return dataItems;
+    const dataList = this.tryArray(data?.['list'] as Object | undefined);
+    if (dataList.length > 0) return dataList;
+
+    const rootItems = this.tryArray(root['items'] as Object | undefined);
+    if (rootItems.length > 0) return rootItems;
+    const rootList = this.tryArray(root['list'] as Object | undefined);
+    if (rootList.length > 0) return rootList;
+
+    return [];
   }
 }
 
