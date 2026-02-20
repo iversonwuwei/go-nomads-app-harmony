@@ -32,6 +32,30 @@ class LoginRequestBody {
   password: string = '';
 }
 
+class SendSmsCodeRequestBody {
+  phoneNumber: string = '';
+  purpose: string = 'login';
+}
+
+class PhoneLoginRequestBody {
+  phoneNumber: string = '';
+  code: string = '';
+}
+
+class SocialLoginRequestBody {
+  provider: string = '';
+  code?: string;
+  accessToken?: string;
+  openId?: string;
+}
+
+interface SendSmsCodeResponse {
+  success: boolean;
+  message: string;
+  expiresInSeconds?: number;
+  requestId?: string;
+}
+
 interface RegisterResponseUser {
   id: string;
   name: string;
@@ -126,7 +150,67 @@ export class AuthService {
     }
 
     await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, rememberMe ? email : null);
+    if (!rememberMe) {
+      await this.tokenService.saveRememberMe('', false);
+    }
     hilog.info(DOMAIN, TAG, '✅ 登录成功: %{public}s', user.userName);
+    return user;
+  }
+
+  async sendSmsCode(phoneNumber: string, purpose: string = 'login'): Promise<SendSmsCodeResponse> {
+    const body = new SendSmsCodeRequestBody();
+    body.phoneNumber = phoneNumber;
+    body.purpose = purpose;
+
+    return await this.httpService.post<SendSmsCodeResponse>(ApiConfig.SMS_SEND_CODE_ENDPOINT, body);
+  }
+
+  async loginWithPhone(phoneNumber: string, code: string): Promise<AuthUser> {
+    const body = new PhoneLoginRequestBody();
+    body.phoneNumber = phoneNumber;
+    body.code = code;
+
+    const result = await this.httpService.post<LoginResponse>(ApiConfig.PHONE_LOGIN_ENDPOINT, body);
+    const user = this.mapUser(result.user);
+
+    let expiresAt: Date | undefined = undefined;
+    if (result.expiresIn) {
+      expiresAt = new Date(Date.now() + result.expiresIn * 1000);
+    }
+
+    await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, null);
+    hilog.info(DOMAIN, TAG, '✅ 手机号登录成功: %{public}s', user.userName);
+    return user;
+  }
+
+  async socialLogin(
+    provider: string,
+    code?: string,
+    accessToken?: string,
+    openId?: string
+  ): Promise<AuthUser> {
+    const body = new SocialLoginRequestBody();
+    body.provider = provider;
+    if (code) {
+      body.code = code;
+    }
+    if (accessToken) {
+      body.accessToken = accessToken;
+    }
+    if (openId) {
+      body.openId = openId;
+    }
+
+    const result = await this.httpService.post<LoginResponse>(ApiConfig.SOCIAL_LOGIN_ENDPOINT, body);
+    const user = this.mapUser(result.user);
+
+    let expiresAt: Date | undefined = undefined;
+    if (result.expiresIn) {
+      expiresAt = new Date(Date.now() + result.expiresIn * 1000);
+    }
+
+    await this.handleAuthSuccess(result.accessToken, result.refreshToken, expiresAt, user, null);
+    hilog.info(DOMAIN, TAG, '✅ 社交登录成功: provider=%{public}s, user=%{public}s', provider, user.userName);
     return user;
   }
 

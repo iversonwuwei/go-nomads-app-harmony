@@ -43,12 +43,12 @@ struct EditBasicInfoPage {
     this.isSaving = true;
     this.errorMessage = '';
     try {
-      await UserService.getInstance().updateUser(this.userId, {
-        name: this.name,
-        bio: this.bio,
-        currentCity: this.currentCity,
-        currentCountry: this.currentCountry,
-      });
+      const payload: Record<string, Object> = {};
+      payload['name'] = this.name as Object;
+      payload['bio'] = this.bio as Object;
+      payload['currentCity'] = this.currentCity as Object;
+      payload['currentCountry'] = this.currentCountry as Object;
+      await UserService.getInstance().updateUser(this.userId, payload);
       router.back();
     } catch (_err) {
       this.errorMessage = '保存失败，请稍后重试';

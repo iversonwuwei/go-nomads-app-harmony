@@ -269,24 +269,24 @@ export class UserService {
       };
       arr.push(interest);
     }
+    return arr;
+  }
 
-    private parseBadges(val: Object | undefined): Badge[] {
-      if (!val || !(val instanceof Array)) {
-        return [];
-      }
-      const arr: Badge[] = [];
-      const objArr = val as Object[];
-      for (let i = 0; i < objArr.length; i++) {
-        const item = objArr[i] as Record<string, Object>;
-        const badge: Badge = {
-          id: (item['id'] as string) ?? i.toString(),
-          name: (item['name'] as string) ?? '',
-          description: item['description'] as string | undefined,
-          icon: item['icon'] as string | undefined,
-        };
-        arr.push(badge);
-      }
-      return arr;
+  private parseBadges(val: Object | undefined): Badge[] {
+    if (!val || !(val instanceof Array)) {
+      return [];
+    }
+    const arr: Badge[] = [];
+    const objArr = val as Object[];
+    for (let i = 0; i < objArr.length; i++) {
+      const item = objArr[i] as Record<string, Object>;
+      const badge: Badge = {
+        id: (item['id'] as string) ?? i.toString(),
+        name: (item['name'] as string) ?? '',
+        description: item['description'] as string | undefined,
+        icon: item['icon'] as string | undefined,
+      };
+      arr.push(badge);
     }
     return arr;
   }

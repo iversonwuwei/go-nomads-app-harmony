@@ -2,6 +2,15 @@ import { AppColors } from '../common/constants/AppColors';
 import { HttpService } from '../services/HttpService';
 import { router } from '@kit.ArkUI';
 
+interface CostPayload {
+  cityId: string;
+  category: string;
+  amount: number;
+  currency: string;
+  description: string;
+  date: string;
+}
+
 @Entry
 @Component
 struct AddCostPage {
@@ -42,14 +51,15 @@ struct AddCostPage {
     this.isSubmitting = true;
     this.errorMessage = '';
     try {
-      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/expenses`, {
+      const payload: CostPayload = {
         cityId: this.cityId,
         category: categoryText.length > 0 ? categoryText : 'other',
         amount: amountValue,
         currency: currencyText.length > 0 ? currencyText : 'USD',
         description: noteText,
         date: new Date().toISOString(),
-      });
+      };
+      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/expenses`, payload as Object);
       router.back();
     } catch (err) {
       this.errorMessage = '提交失败，请稍后重试';

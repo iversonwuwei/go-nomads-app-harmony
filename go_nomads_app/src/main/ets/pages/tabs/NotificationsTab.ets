@@ -2,7 +2,6 @@ import { AppColors } from '../../common/constants/AppColors';
 import { AppNotification } from '../../models/Notification';
 import { NotificationService } from '../../services/NotificationService';
 import { AppStorageKeys } from '../../common/constants/AppStorageKeys';
-import { AppStorage } from '@kit.ArkUI';
 
 /**
  * 通知 Tab - 100% 还原 Flutter notifications_page.dart
@@ -39,8 +38,30 @@ export struct NotificationsTab {
   }
 
   markAllRead(): void {
-    this.notifications = this.notifications.map((n) => ({ ...n, isRead: true }));
+    const updated: AppNotification[] = [];
+    for (let i = 0; i < this.notifications.length; i++) {
+      const n = this.notifications[i];
+      const item: AppNotification = {
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        isRead: true,
+        createdAt: n.createdAt,
+        actionUrl: n.actionUrl,
+      };
+      updated.push(item);
+    }
+    this.notifications = updated;
     AppStorage.set(AppStorageKeys.UNREAD_NOTIFICATION_COUNT, 0);
+  }
+
+  private getFilteredNotifications(type: string): AppNotification[] {
+    return this.notifications.filter((n: AppNotification) => {
+      if (type === 'unread') return !n.isRead;
+      if (type === 'read') return n.isRead;
+      return true;
+    });
   }
 
   build() {
@@ -123,13 +144,7 @@ export struct NotificationsTab {
 
   @Builder
   NotificationList(type: string) {
-    const filtered = this.notifications.filter((n) => {
-      if (type === 'unread') return !n.isRead;
-      if (type === 'read') return n.isRead;
-      return true;
-    });
-
-    if (filtered.length === 0) {
+    if (this.getFilteredNotifications(type).length === 0) {
       Column() {
         SymbolGlyph($r('sys.symbol.bell'))
           .fontSize(48)
@@ -145,7 +160,7 @@ export struct NotificationsTab {
       .alignItems(HorizontalAlign.Center)
     } else {
       List() {
-        ForEach(filtered, (n: AppNotification) => {
+        ForEach(this.getFilteredNotifications(type), (n: AppNotification) => {
           ListItem() {
             this.NotificationRow(n)
           }

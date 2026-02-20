@@ -8,6 +8,7 @@ import { router } from '@kit.ArkUI';
 struct CommunityPage {
   @State isLoading: boolean = true;
   @State currentTab: number = 0;
+  @State actionMessage: string = '';
   @State selectedCategory: string = 'All';
   @State tripReports: TripReport[] = [];
   @State recommendations: CityRecommendation[] = [];
@@ -147,7 +148,7 @@ struct CommunityPage {
   @Builder
   RecommendationsTab() {
     Column() {
-      Scroll({ direction: Axis.Horizontal }) {
+      Scroll() {
         Row({ space: 8 }) {
           ForEach(this.categories, (cat: string) => {
             Text(cat)

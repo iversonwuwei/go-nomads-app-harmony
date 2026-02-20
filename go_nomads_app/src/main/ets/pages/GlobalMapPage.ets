@@ -91,7 +91,7 @@ struct GlobalMapPage {
           }
           .width('100%')
 
-          Scroll({ direction: Axis.Horizontal }) {
+          Scroll() {
             Row({ space: 8 }) {
               ForEach(Object.keys(this.tileSourceOptions), (key: string) => {
                 Text(this.tileSourceOptions[key])

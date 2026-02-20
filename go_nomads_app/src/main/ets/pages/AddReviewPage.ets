@@ -2,6 +2,13 @@ import { AppColors } from '../common/constants/AppColors';
 import { HttpService } from '../services/HttpService';
 import { router } from '@kit.ArkUI';
 
+interface ReviewPayload {
+  cityId: string;
+  rating: number;
+  title: string;
+  content: string;
+}
+
 @Entry
 @Component
 struct AddReviewPage {
@@ -39,12 +46,13 @@ struct AddReviewPage {
     this.isSubmitting = true;
     this.errorMessage = '';
     try {
-      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/reviews`, {
+      const payload: ReviewPayload = {
         cityId: this.cityId,
         rating: Math.round(ratingValue),
         title: titleText,
         content: contentText,
-      });
+      };
+      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/reviews`, payload as Object);
       router.back();
     } catch (err) {
       this.errorMessage = '提交失败，请稍后重试';

@@ -4,7 +4,6 @@ import { RouteConstants } from '../common/constants/RouteConstants';
 import { TravelPlanService } from '../services/TravelPlanService';
 import { TravelPlanSummary } from '../models/TravelPlanSummary';
 import { router } from '@kit.ArkUI';
-import clipboard from '@ohos.clipboard';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'TravelPlanPage';
@@ -455,13 +454,8 @@ struct TravelPlanPage {
       ? `https://nomadcities.app/travel-plans/${this.currentPlanId}`
       : 'https://nomadcities.app/travel-plans';
     const text = `${city} ${days}天旅行计划\n预算：${this.detailBudgetLabel()}\n风格：${this.detailStyleLabel()}${departure.length > 0 ? `\n出发地：${departure}` : ''}\n${shareUrl}`;
-    try {
-      await clipboard.setData(text);
-      this.actionMessage = '分享文案已复制，可直接发送给好友';
-      this.errorMessage = '';
-    } catch (err) {
-      this.errorMessage = `复制失败: ${(err as Error).message}`;
-    }
+    this.actionMessage = `分享文案已生成，可手动复制：${text}`;
+    this.errorMessage = '';
   }
 
   build() {
@@ -817,9 +811,6 @@ struct TravelPlanPage {
 
   @Builder
   TransportationCard() {
-    const arrivalCost = this.transportEstimatedCost();
-    const localCost = this.transportDailyCost();
-
     Column({ space: 8 }) {
       Text('交通方案')
         .fontSize(16)
@@ -832,8 +823,8 @@ struct TravelPlanPage {
       Text(this.transportArrivalDetails() || '正在根据偏好推荐最优到达路线')
         .fontSize(13)
         .fontColor(AppColors.TEXT_TERTIARY)
-      if (arrivalCost > 0) {
-        Text(`💵 到达预算：${this.detailBudgetCurrency()} ${arrivalCost}`)
+      if (this.transportEstimatedCost() > 0) {
+        Text(`💵 到达预算：${this.detailBudgetCurrency()} ${this.transportEstimatedCost()}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
       }
@@ -844,8 +835,8 @@ struct TravelPlanPage {
       Text(this.transportLocalDetails() || '优先地铁/公交，搭配步行探索城市')
         .fontSize(13)
         .fontColor(AppColors.TEXT_TERTIARY)
-      if (localCost > 0) {
-        Text(`📆 每日交通预算：${this.detailBudgetCurrency()} ${localCost}`)
+      if (this.transportDailyCost() > 0) {
+        Text(`📆 每日交通预算：${this.detailBudgetCurrency()} ${this.transportDailyCost()}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
       }
@@ -860,18 +851,13 @@ struct TravelPlanPage {
 
   @Builder
   AccommodationCard() {
-    const accommodation = this.detailAccommodation();
-    const amenities = this.accommodationAmenities();
-    const bookingTips = this.accommodationBookingTips();
-    const pricePerNight = this.accommodationPricePerNight();
-
     Column({ space: 8 }) {
       Text('住宿建议')
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Text(`🏨 类型：${this.readString(accommodation, 'type') || '酒店 / 公寓'}`)
+      Text(`🏨 类型：${this.readString(this.detailAccommodation(), 'type') || '酒店 / 公寓'}`)
         .fontSize(13)
         .fontColor(AppColors.TEXT_SECONDARY)
 
@@ -879,24 +865,24 @@ struct TravelPlanPage {
         .fontSize(13)
         .fontColor(AppColors.TEXT_SECONDARY)
 
-      if (pricePerNight > 0) {
-        Text(`💵 参考价格：${this.detailBudgetCurrency()} ${pricePerNight}/晚`)
+      if (this.accommodationPricePerNight() > 0) {
+        Text(`💵 参考价格：${this.detailBudgetCurrency()} ${this.accommodationPricePerNight()}/晚`)
           .fontSize(13)
           .fontColor(AppColors.TEXT_SECONDARY)
       }
 
-      Text(this.readString(accommodation, 'recommendation') || '优先选择交通便利、评价较高的住宿，并关注可免费取消政策。')
+      Text(this.readString(this.detailAccommodation(), 'recommendation') || '优先选择交通便利、评价较高的住宿，并关注可免费取消政策。')
         .fontSize(13)
         .fontColor(AppColors.TEXT_TERTIARY)
 
-      if (amenities.length > 0) {
-        Text(`🧰 设施：${amenities}`)
+      if (this.accommodationAmenities().length > 0) {
+        Text(`🧰 设施：${this.accommodationAmenities()}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
       }
 
-      if (bookingTips.length > 0) {
-        Text(`💡 预订提示：${bookingTips}`)
+      if (this.accommodationBookingTips().length > 0) {
+        Text(`💡 预订提示：${this.accommodationBookingTips()}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
       }
@@ -911,34 +897,24 @@ struct TravelPlanPage {
 
   @Builder
   BudgetCard() {
-    const budget = this.detailBudget();
-    const currency = this.detailBudgetCurrency();
-    const transportation = this.readNumber(budget, 'transportation', 0);
-    const accommodation = this.readNumber(budget, 'accommodation', 0);
-    const food = this.readNumber(budget, 'food', 0);
-    const activities = this.readNumber(budget, 'activities', 0);
-    const miscellaneous = this.readNumber(budget, 'miscellaneous', 0);
-    const total = this.detailBudgetTotal();
-    const daily = this.detailDuration() > 0 ? Math.round(total / this.detailDuration()) : 0;
-
     Column({ space: 8 }) {
       Text('预算分配')
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      if (total > 0) {
-        Text(`💵 预估总预算：${currency} ${total}`)
+      if (this.detailBudgetTotal() > 0) {
+        Text(`💵 预估总预算：${this.detailBudgetCurrency()} ${this.detailBudgetTotal()}`)
           .fontSize(13)
           .fontColor(AppColors.TEXT_SECONDARY)
-        Text(`📆 日均预算：${currency} ${daily}`)
+        Text(`📆 日均预算：${this.detailBudgetCurrency()} ${this.detailDuration() > 0 ? Math.round(this.detailBudgetTotal() / this.detailDuration()) : 0}`)
           .fontSize(13)
           .fontColor(AppColors.TEXT_SECONDARY)
 
-        Text(`交通 ${transportation} · 住宿 ${accommodation} · 餐饮 ${food}`)
+        Text(`交通 ${this.readNumber(this.detailBudget(), 'transportation', 0)} · 住宿 ${this.readNumber(this.detailBudget(), 'accommodation', 0)} · 餐饮 ${this.readNumber(this.detailBudget(), 'food', 0)}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
-        Text(`活动 ${activities} · 其他 ${miscellaneous}`)
+        Text(`活动 ${this.readNumber(this.detailBudget(), 'activities', 0)} · 其他 ${this.readNumber(this.detailBudget(), 'miscellaneous', 0)}`)
           .fontSize(12)
           .fontColor(AppColors.TEXT_TERTIARY)
       } else {
@@ -957,78 +933,19 @@ struct TravelPlanPage {
 
   @Builder
   ItineraryCard() {
-    const itineraries = this.detailItineraries();
-
     Column({ space: 8 }) {
       Text('每日行程')
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      if (itineraries.length === 0) {
+      if (this.detailItineraries().length === 0) {
         Text('正在整理更细化的每日安排，稍后可再次查看。')
           .fontSize(13)
           .fontColor(AppColors.TEXT_TERTIARY)
       } else {
-        ForEach(itineraries.slice(0, 5), (it: Object, index?: number) => {
-          const item = it as Record<string, Object>;
-          const day = this.readNumber(item, 'day', (index ?? 0) + 1);
-          const title = this.readString(item, 'theme') || this.readString(item, 'title') || `Day ${day}`;
-          const summary = this.readString(item, 'notes') || this.readString(item, 'summary') || '探索城市特色景点与本地体验';
-          const activities = this.readArray(item, 'activities');
-
-          Column({ space: 4 }) {
-            Text(`Day ${day} · ${title}`)
-              .fontSize(13)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(AppColors.TEXT_PRIMARY)
-            Text(summary)
-              .fontSize(12)
-              .fontColor(AppColors.TEXT_SECONDARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-            if (activities.length > 0) {
-              ForEach(activities.slice(0, 3), (ac: Object, acIndex?: number) => {
-                const activity = ac as Record<string, Object>;
-                const acTime = this.readString(activity, 'time') || '--:--';
-                const acName = this.readString(activity, 'name') || `活动 ${((acIndex ?? 0) + 1)}`;
-                const acLocation = this.readString(activity, 'location');
-                const acCost = this.readNumber(activity, 'estimatedCost', 0);
-
-                Row({ space: 6 }) {
-                  Text(acTime)
-                    .fontSize(11)
-                    .fontColor(AppColors.TEXT_TERTIARY)
-                    .width(44)
-                  Column({ space: 2 }) {
-                    Text(acName)
-                      .fontSize(12)
-                      .fontColor(AppColors.TEXT_PRIMARY)
-                      .maxLines(1)
-                      .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    Text(`${acLocation.length > 0 ? acLocation : '地点待定'}${acCost > 0 ? ` · ${this.formatMoney(acCost)}` : ''}`)
-                      .fontSize(11)
-                      .fontColor(AppColors.TEXT_TERTIARY)
-                      .maxLines(1)
-                      .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  }
-                  .layoutWeight(1)
-                  .alignItems(HorizontalAlign.Start)
-                }
-                .width('100%')
-              }, (_ac: Object, acIndex?: number) => `activity-${day}-${acIndex ?? 0}`)
-              if (activities.length > 3) {
-                Text(`还有 ${activities.length - 3} 项活动...`)
-                  .fontSize(11)
-                  .fontColor(AppColors.TEXT_TERTIARY)
-              }
-            }
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-          .padding({ top: 8, bottom: 8 })
-          .border({ width: { bottom: 1 }, color: AppColors.BORDER_LIGHT })
+        ForEach(this.detailItineraries().slice(0, 5), (it: Object, index?: number) => {
+          this.ItineraryItem(it, index ?? 0)
         }, (_it: Object, index?: number) => `itinerary-${index ?? 0}`)
       }
     }
@@ -1054,36 +971,7 @@ struct TravelPlanPage {
           .fontColor(AppColors.TEXT_TERTIARY)
       } else {
         ForEach(items.slice(0, 6), (it: Object, index?: number) => {
-          const item = it as Record<string, Object>;
-          const name = this.readString(item, nameKey) || this.readString(item, 'title') || '推荐地点';
-          const desc = this.readString(item, 'description') || this.readString(item, 'reason');
-          const rating = this.readNumber(item, 'rating', 0);
-          const location = this.readString(item, 'location');
-          const category = this.readString(item, 'category') || this.readString(item, 'cuisine');
-
-          Column({ space: 4 }) {
-            Text(`• ${name}`)
-              .fontSize(13)
-              .fontColor(AppColors.TEXT_PRIMARY)
-              .fontWeight(FontWeight.Medium)
-
-            if (category.length > 0 || location.length > 0 || rating > 0) {
-              Text(`${category.length > 0 ? category : '推荐'}${rating > 0 ? ` · ⭐${rating.toFixed(1)}` : ''}${location.length > 0 ? ` · ${location}` : ''}`)
-                .fontSize(12)
-                .fontColor(AppColors.TEXT_TERTIARY)
-            }
-
-            if (desc.length > 0) {
-              Text(desc)
-                .fontSize(12)
-                .fontColor(AppColors.TEXT_SECONDARY)
-                .maxLines(2)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-          .padding({ top: 6, bottom: 6 })
+          this.RecommendationItem(it, nameKey)
         }, (_it: Object, index?: number) => `${title}-${index ?? 0}`)
       }
     }
@@ -1097,19 +985,18 @@ struct TravelPlanPage {
 
   @Builder
   TipsCard() {
-    const tips = this.detailTips();
     Column({ space: 8 }) {
       Text('实用建议')
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      if (tips.length === 0) {
+      if (this.detailTips().length === 0) {
         Text('带好证件与常用药品，优先预订可取消资源，关注目的地天气。')
           .fontSize(13)
           .fontColor(AppColors.TEXT_TERTIARY)
       } else {
-        ForEach(tips.slice(0, 8), (tip: string, index?: number) => {
+        ForEach(this.detailTips().slice(0, 8), (tip: string, index?: number) => {
           Text(`• ${tip}`)
             .fontSize(13)
             .fontColor(AppColors.TEXT_SECONDARY)
@@ -1124,6 +1011,38 @@ struct TravelPlanPage {
     .backgroundColor(AppColors.WHITE)
     .borderRadius(12)
     .border({ width: 1, color: AppColors.BORDER_LIGHT })
+  }
+
+  @Builder
+  ItineraryItem(it: Object, index: number) {
+    Text(`Day ${index + 1} · ${this.readString(it as Record<string, Object>, 'theme') || this.readString(it as Record<string, Object>, 'title') || '城市探索'}`)
+      .fontSize(13)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(AppColors.TEXT_PRIMARY)
+      .width('100%')
+      .textAlign(TextAlign.Start)
+      .padding({ top: 8, bottom: 8 })
+      .border({ width: { bottom: 1 }, color: AppColors.BORDER_LIGHT })
+  }
+
+  @Builder
+  RecommendationItem(it: Object, nameKey: string) {
+    Column({ space: 4 }) {
+      Text(`• ${this.readString(it as Record<string, Object>, nameKey) || this.readString(it as Record<string, Object>, 'title') || '推荐地点'}`)
+        .fontSize(13)
+        .fontColor(AppColors.TEXT_PRIMARY)
+        .fontWeight(FontWeight.Medium)
+      if ((this.readString(it as Record<string, Object>, 'description') || this.readString(it as Record<string, Object>, 'reason')).length > 0) {
+        Text(this.readString(it as Record<string, Object>, 'description') || this.readString(it as Record<string, Object>, 'reason'))
+          .fontSize(12)
+          .fontColor(AppColors.TEXT_SECONDARY)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({ top: 6, bottom: 6 })
   }
 
   statusLabel(status: string): string {

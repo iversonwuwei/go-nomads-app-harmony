@@ -31,7 +31,21 @@ struct NotificationsPage {
   }
 
   markAllRead(): void {
-    this.notifications = this.notifications.map((n) => ({ ...n, isRead: true }));
+    const updated: AppNotification[] = [];
+    for (let i = 0; i < this.notifications.length; i++) {
+      const n = this.notifications[i];
+      const item: AppNotification = {
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        isRead: true,
+        createdAt: n.createdAt,
+        actionUrl: n.actionUrl,
+      };
+      updated.push(item);
+    }
+    this.notifications = updated;
     AppStorage.set(AppStorageKeys.UNREAD_NOTIFICATION_COUNT, 0);
   }
 

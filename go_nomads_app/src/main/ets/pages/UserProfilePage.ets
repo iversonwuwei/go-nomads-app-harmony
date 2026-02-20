@@ -1,7 +1,7 @@
 import { AppColors } from '../common/constants/AppColors';
 import { HttpService } from '../services/HttpService';
 import { ApiConfig } from '../common/constants/ApiConfig';
-import { User, UserHelper } from '../models/User';
+import { Badge, User, UserHelper } from '../models/User';
 import { RouteConstants } from '../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -195,7 +195,7 @@ struct UserProfilePage {
       Text('🎖 徽章').fontSize(16).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY)
       if (this.user!.badges.length > 0) {
         Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.user!.badges, (badge) => {
+          ForEach(this.user!.badges, (badge: Badge) => {
             Row({ space: 6 }) {
               Text(badge.icon ?? '🏅')
               Column({ space: 2 }) {
@@ -211,7 +211,7 @@ struct UserProfilePage {
             .borderRadius(12)
             .border({ width: 1, color: AppColors.BORDER_LIGHT })
             .margin({ right: 8, bottom: 8 })
-          }, (badge) => badge.id)
+          }, (badge: Badge) => badge.id)
         }
       } else {
         Text('还没有获得徽章').fontSize(13).fontColor(AppColors.TEXT_SECONDARY)

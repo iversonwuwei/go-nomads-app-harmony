@@ -238,92 +238,98 @@ struct TravelHistoryPage {
   build() {
     Stack() {
       Column() {
-      Row() {
-        SymbolGlyph($r('sys.symbol.arrow_left'))
-          .fontSize(24)
-          .fontColor([AppColors.TEXT_PRIMARY])
-          .onClick(() => {
-            router.back();
-          })
-        Text('旅行历史')
-          .fontSize(18)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(AppColors.TEXT_PRIMARY)
+        Row() {
+          SymbolGlyph($r('sys.symbol.arrow_left'))
+            .fontSize(24)
+            .fontColor([AppColors.TEXT_PRIMARY])
+            .onClick(() => {
+              router.back();
+            })
+          Text('旅行历史')
+            .fontSize(18)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppColors.TEXT_PRIMARY)
+            .layoutWeight(1)
+            .textAlign(TextAlign.Center)
+
+          Text(this.isAutoDetectionEnabled ? '📍' : '📍✕')
+            .fontSize(18)
+            .fontColor(this.isAutoDetectionEnabled ? AppColors.PRIMARY : AppColors.TEXT_TERTIARY)
+            .margin({ right: 10 })
+            .onClick(() => {
+              this.isAutoDetectionEnabled = !this.isAutoDetectionEnabled;
+              this.showActionMessage(this.isAutoDetectionEnabled ? '自动检测已开启' : '自动检测已关闭');
+            })
+
+          Text('⋮')
+            .fontSize(20)
+            .fontColor(AppColors.TEXT_PRIMARY)
+            .onClick(() => {
+              this.showMenu = !this.showMenu;
+            })
+        }
+        .width('100%')
+        .height(56)
+        .padding({ left: 16, right: 16 })
+        .backgroundColor(AppColors.CARD_BACKGROUND)
+
+        if (this.isLoading && !this.isRefreshing) {
+          Column() { LoadingProgress().width(40).height(40) }
+            .width('100%')
+            .layoutWeight(1)
+            .justifyContent(FlexAlign.Center)
+        } else {
+          Refresh({ refreshing: $$this.isRefreshing }) {
+            Scroll() {
+              Column() {
+                if (this.homeLocation.length > 0) {
+                  this.HomeLocationCard()
+                }
+
+                this.SectionHeader('待确认旅行', this.pendingTrips.length)
+                if (this.pendingTrips.length > 0) {
+                  Column() {
+                    ForEach(this.pendingTrips, (trip: TravelHistory) => {
+                      this.PendingTripCard(trip)
+                    }, (trip: TravelHistory) => `p-${this.getTripKey(trip)}`)
+                  }
+                  .width('100%')
+                }
+
+                this.SectionHeader('已确认旅行', this.confirmedTrips.length)
+                if (this.confirmedTrips.length === 0) {
+                  this.EmptyState()
+                } else {
+                  List() {
+                    ForEach(this.confirmedTrips, (trip: TravelHistory) => {
+                      ListItem() {
+                        this.TripCard(trip)
+                      }
+                    }, (trip: TravelHistory) => this.getTripKey(trip))
+                  }
+                  .layoutWeight(1)
+                  .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+                  .divider({ strokeWidth: 0 })
+                  .edgeEffect(EdgeEffect.Spring)
+                }
+              }
+              .width('100%')
+            }
+            .width('100%')
+            .height('100%')
+          }
           .layoutWeight(1)
-          .textAlign(TextAlign.Center)
-
-        SymbolGlyph(this.isAutoDetectionEnabled ? $r('sys.symbol.location_fill') : $r('sys.symbol.location_slash'))
-          .fontSize(18)
-          .fontColor([this.isAutoDetectionEnabled ? AppColors.PRIMARY : AppColors.TEXT_TERTIARY])
-          .margin({ right: 10 })
-          .onClick(() => {
-            this.isAutoDetectionEnabled = !this.isAutoDetectionEnabled;
-            this.showActionMessage(this.isAutoDetectionEnabled ? '自动检测已开启' : '自动检测已关闭');
+          .onRefreshing(() => {
+            this.showMenu = false;
+            this.actionMessage = '';
+            this.isRefreshing = true;
+            this.loadTrips();
           })
-
-        Text('⋮')
-          .fontSize(20)
-          .fontColor(AppColors.TEXT_PRIMARY)
-          .onClick(() => {
-            this.showMenu = !this.showMenu;
-          })
+        }
       }
       .width('100%')
-      .height(56)
-      .padding({ left: 16, right: 16 })
-      .backgroundColor(AppColors.CARD_BACKGROUND)
-
-      if (this.isLoading && !this.isRefreshing) {
-        Column() { LoadingProgress().width(40).height(40) }
-          .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
-      } else {
-        Refresh({ refreshing: $$this.isRefreshing }) {
-          Scroll() {
-            Column() {
-              if (this.homeLocation.length > 0) {
-                this.HomeLocationCard()
-              }
-
-              this.SectionHeader('待确认旅行', this.pendingTrips.length)
-              if (this.pendingTrips.length > 0) {
-                Column() {
-                  ForEach(this.pendingTrips, (trip: TravelHistory) => {
-                    this.PendingTripCard(trip)
-                  }, (trip: TravelHistory) => `p-${this.getTripKey(trip)}`)
-                }
-                .width('100%')
-              }
-
-              this.SectionHeader('已确认旅行', this.confirmedTrips.length)
-              if (this.confirmedTrips.length === 0) {
-                this.EmptyState()
-              } else {
-                List() {
-                  ForEach(this.confirmedTrips, (trip: TravelHistory) => {
-                    ListItem() {
-                      this.TripCard(trip)
-                    }
-                  }, (trip: TravelHistory) => this.getTripKey(trip))
-                }
-                .layoutWeight(1)
-                .padding({ left: 16, right: 16, top: 8, bottom: 16 })
-                .divider({ strokeWidth: 0 })
-                .edgeEffect(EdgeEffect.Spring)
-              }
-            }
-          }
-          .width('100%')
-          .height('100%')
-        }
-        .layoutWeight(1)
-        .onRefreshing(() => {
-          this.showMenu = false;
-          this.actionMessage = '';
-          this.isRefreshing = true;
-          this.loadTrips();
-        })
-      }
-      .width('100%').height('100%').backgroundColor(AppColors.BACKGROUND)
+      .height('100%')
+      .backgroundColor(AppColors.BACKGROUND)
 
       if (!this.showMenu && (this.actionMessage.length > 0 || this.loadError.length > 0)) {
         Column() {
@@ -360,9 +366,9 @@ struct TravelHistoryPage {
       Text('开始你的数字游民旅程吧').fontSize(14).fontColor(AppColors.TEXT_TERTIARY)
       if (this.isAutoDetectionEnabled) {
         Row({ space: 6 }) {
-          SymbolGlyph($r('sys.symbol.location_fill'))
+          Text('📍')
             .fontSize(14)
-            .fontColor([AppColors.PRIMARY])
+            .fontColor(AppColors.PRIMARY)
           Text('自动检测进行中')
             .fontSize(12)
             .fontColor(AppColors.PRIMARY)
@@ -464,11 +470,13 @@ struct TravelHistoryPage {
         .onClick(() => {
           const tripKey = this.getTripKey(trip);
           this.pendingTrips = this.pendingTrips.filter((item: TravelHistory) => this.getTripKey(item) !== tripKey);
-          const updatedTrip: TravelHistory = { ...trip, status: 'confirmed' };
-          this.confirmedTrips = [
-            updatedTrip,
-            ...this.confirmedTrips.filter((item: TravelHistory) => this.getTripKey(item) !== tripKey),
-          ];
+          const updatedTrip: TravelHistory = this.buildConfirmedTrip(trip);
+          const mergedConfirmed: TravelHistory[] = [updatedTrip];
+          const kept = this.confirmedTrips.filter((item: TravelHistory) => this.getTripKey(item) !== tripKey);
+          for (let i = 0; i < kept.length; i++) {
+            mergedConfirmed.push(kept[i]);
+          }
+          this.confirmedTrips = mergedConfirmed;
           this.trips = this.trips.map((item: TravelHistory) => this.getTripKey(item) === tripKey ? updatedTrip : item);
           if (this.homeLocation.length === 0) {
             this.homeLocation = `${updatedTrip.city}${updatedTrip.country ? ', ' + updatedTrip.country : ''}`;
@@ -586,5 +594,23 @@ struct TravelHistoryPage {
     if (!raw) return '';
     const d = new Date(raw);
     return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+  }
+
+  private buildConfirmedTrip(trip: TravelHistory): TravelHistory {
+    const confirmed: TravelHistory = {
+      id: trip.id,
+      backendId: trip.backendId,
+      cityId: trip.cityId,
+      city: trip.city,
+      country: trip.country,
+      arrivalTime: trip.arrivalTime,
+      departureTime: trip.departureTime,
+      durationDays: trip.durationDays,
+      status: 'confirmed',
+      isOngoing: trip.isOngoing,
+      cityName: trip.cityName,
+      countryCode: trip.countryCode,
+    };
+    return confirmed;
   }
 }

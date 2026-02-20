@@ -8,6 +8,21 @@ const DOMAIN = 0x0001;
 const AI_TRAVEL_PLAN_ENDPOINT = '/ai/travel-plan';
 const AI_TRAVEL_PLAN_ASYNC_ENDPOINT = '/ai/travel-plan/async';
 
+interface CreatePlanPayload {
+  cityId: string;
+  cityName: string;
+  cityImage: string;
+  duration: number;
+  budget: string;
+  travelStyle: string;
+  interests: Object;
+  departureLocation?: string;
+  departureDate?: string;
+  customBudget?: string;
+  currency: string;
+  selectedAttractions?: Object;
+}
+
 /**
  * 旅行计划服务 - 获取用户最近的计划摘要
  */
@@ -83,7 +98,7 @@ export class TravelPlanService {
     return null;
   }
 
-  async createPlan(payload: Record<string, Object>): Promise<Record<string, Object> | null> {
+  async createPlan(payload: Object): Promise<Record<string, Object> | null> {
     try {
       const result = await this.httpService.post<Object>(ApiConfig.TRAVEL_PLANS_ENDPOINT, payload);
       const obj = this.tryRecord(result);
@@ -113,7 +128,7 @@ export class TravelPlanService {
     onProgress?: (progress: number, message: string) => void,
   ): Promise<Record<string, Object> | null> {
     const normalizedTravelStyle = this.normalizeTravelStyle(travelStyle);
-    const payload: Record<string, Object> = {
+    const payload: CreatePlanPayload = {
       cityId,
       cityName,
       cityImage: '',
@@ -121,34 +136,40 @@ export class TravelPlanService {
       budget,
       travelStyle: normalizedTravelStyle,
       interests: interests as Object,
-      departureLocation: departureLocation || undefined,
-      departureDate: departureDate || undefined,
-      customBudget: customBudget || undefined,
       currency: currency || 'USD',
-      selectedAttractions: (selectedAttractions && selectedAttractions.length > 0)
-        ? selectedAttractions as Object
-        : undefined,
     };
+    if (departureLocation.length > 0) {
+      payload.departureLocation = departureLocation;
+    }
+    if (departureDate.length > 0) {
+      payload.departureDate = departureDate;
+    }
+    if (customBudget && customBudget.length > 0) {
+      payload.customBudget = customBudget;
+    }
+    if (selectedAttractions && selectedAttractions.length > 0) {
+      payload.selectedAttractions = selectedAttractions as Object;
+    }
 
-    const directCreated = await this.createPlan(payload);
+    const directCreated = await this.createPlan(payload as Object);
     if (directCreated && this.readString(directCreated, 'id').length > 0) {
       return directCreated;
     }
 
     try {
       onProgress?.(8, '任务已创建，准备生成旅行计划...');
-      const taskResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ASYNC_ENDPOINT, payload);
+      const taskResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ASYNC_ENDPOINT, payload as Object);
       const taskObj = this.tryRecord(taskResp);
       const taskId = this.readString(taskObj, 'taskId');
       if (!taskId) {
-        const syncResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ENDPOINT, payload);
+        const syncResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ENDPOINT, payload as Object);
         return this.unwrapAsRecord(syncResp);
       }
       return await this.pollTaskResult(taskId, onProgress);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ createPlanFromPreferences async failed: %{public}s', (err as Error).message);
       try {
-        const syncResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ENDPOINT, payload);
+        const syncResp = await this.httpService.post<Object>(AI_TRAVEL_PLAN_ENDPOINT, payload as Object);
         return this.unwrapAsRecord(syncResp);
       } catch (syncErr) {
         hilog.error(DOMAIN, TAG, '❌ createPlanFromPreferences sync failed: %{public}s', (syncErr as Error).message);

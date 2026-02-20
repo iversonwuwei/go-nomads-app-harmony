@@ -18,6 +18,9 @@ export default class Go_nomads_appAbility extends UIAbility {
     }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
 
+    // 绑定 TokenStorage 上下文（懒初始化兜底）
+    TokenStorageService.getInstance().bindContext(this.context);
+
     // 初始化全局状态默认值（Ability 创建时立即设置，确保 UI 可用前就有值）
     AppStorage.setOrCreate(AppStorageKeys.AUTH_STATUS, AuthStatus.Unknown);
     AppStorage.setOrCreate(AppStorageKeys.IS_AUTHENTICATED, false);

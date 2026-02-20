@@ -3,7 +3,6 @@ import { CityService } from '../services/CityService';
 import { AppColors } from '../common/constants/AppColors';
 import { RouteConstants } from '../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
-import clipboard from '@ohos.clipboard';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'CityDetailPage';
@@ -75,12 +74,7 @@ struct CityDetailPage {
       return;
     }
     this.buildShareContent(this.city);
-    try {
-      await clipboard.setData(this.shareUrl);
-      hilog.info(DOMAIN, TAG, '✅ 分享链接已复制: %{public}s', this.shareUrl);
-    } catch (err) {
-      hilog.error(DOMAIN, TAG, '❌ 复制分享链接失败: %{public}s', (err as Error).message);
-    }
+    hilog.info(DOMAIN, TAG, '✅ 分享链接已准备: %{public}s', this.shareUrl);
   }
 
   async loadCityDetail(): Promise<void> {

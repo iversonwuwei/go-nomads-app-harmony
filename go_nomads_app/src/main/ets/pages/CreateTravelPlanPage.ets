@@ -6,6 +6,22 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const TAG = 'CreateTravelPlanPage';
 const DOMAIN = 0x0001;
 
+interface BudgetOption {
+  key: string;
+  label: string;
+}
+
+interface StyleOption {
+  key: string;
+  label: string;
+  emoji: string;
+}
+
+interface AttractionOption {
+  id: string;
+  label: string;
+}
+
 @Entry
 @Component
 struct CreateTravelPlanPage {
@@ -24,18 +40,18 @@ struct CreateTravelPlanPage {
   @State isSubmitting: boolean = false;
 
   private readonly durationOptions: number[] = [3, 5, 7, 10, 14];
-  private readonly budgetOptions: Array<{ key: string; label: string }> = [
-    { key: 'low', label: 'Budget' },
-    { key: 'medium', label: 'Moderate' },
-    { key: 'high', label: 'Luxury' },
-    { key: 'custom', label: 'Custom' },
+  private readonly budgetOptions: BudgetOption[] = [
+    { key: 'low', label: 'Budget' } as BudgetOption,
+    { key: 'medium', label: 'Moderate' } as BudgetOption,
+    { key: 'high', label: 'Luxury' } as BudgetOption,
+    { key: 'custom', label: 'Custom' } as BudgetOption,
   ];
   private readonly currencyOptions: string[] = ['USD', 'CNY', 'EUR', 'JPY'];
-  private readonly styleOptions: Array<{ key: string; label: string; emoji: string }> = [
-    { key: 'culture', label: '文化探索', emoji: '🏛️' },
-    { key: 'adventure', label: '冒险体验', emoji: '🏕️' },
-    { key: 'relaxation', label: '放松疗愈', emoji: '🏖️' },
-    { key: 'nightlife', label: '夜生活', emoji: '🌃' },
+  private readonly styleOptions: StyleOption[] = [
+    { key: 'culture', label: '文化探索', emoji: '🏛️' } as StyleOption,
+    { key: 'adventure', label: '冒险体验', emoji: '🏕️' } as StyleOption,
+    { key: 'relaxation', label: '放松疗愈', emoji: '🏖️' } as StyleOption,
+    { key: 'nightlife', label: '夜生活', emoji: '🌃' } as StyleOption,
   ];
   private readonly interestOptions: string[] = [
     '历史古迹',
@@ -49,15 +65,15 @@ struct CreateTravelPlanPage {
     '亲子友好',
     '创意市集',
   ];
-  private readonly attractionOptions: Array<{ id: string; label: string }> = [
-    { id: 'historic', label: '历史古迹' },
-    { id: 'museum', label: '博物馆' },
-    { id: 'park', label: '公园绿地' },
-    { id: 'food_district', label: '美食街区' },
-    { id: 'shopping_mall', label: '购物中心' },
-    { id: 'art_gallery', label: '艺术画廊' },
-    { id: 'viewpoint', label: '观景台' },
-    { id: 'night_market', label: '夜市' },
+  private readonly attractionOptions: AttractionOption[] = [
+    { id: 'historic', label: '历史古迹' } as AttractionOption,
+    { id: 'museum', label: '博物馆' } as AttractionOption,
+    { id: 'park', label: '公园绿地' } as AttractionOption,
+    { id: 'food_district', label: '美食街区' } as AttractionOption,
+    { id: 'shopping_mall', label: '购物中心' } as AttractionOption,
+    { id: 'art_gallery', label: '艺术画廊' } as AttractionOption,
+    { id: 'viewpoint', label: '观景台' } as AttractionOption,
+    { id: 'night_market', label: '夜市' } as AttractionOption,
   ];
 
   aboutToAppear(): void {
@@ -72,22 +88,28 @@ struct CreateTravelPlanPage {
     const idx = this.selectedInterests.indexOf(interest);
     if (idx >= 0) {
       this.selectedInterests.splice(idx, 1);
-      this.selectedInterests = [...this.selectedInterests];
     } else {
       this.selectedInterests.push(interest);
-      this.selectedInterests = [...this.selectedInterests];
     }
+    const next: string[] = [];
+    for (let i = 0; i < this.selectedInterests.length; i++) {
+      next.push(this.selectedInterests[i]);
+    }
+    this.selectedInterests = next;
   }
 
   private toggleAttraction(id: string): void {
     const idx = this.selectedAttractions.indexOf(id);
     if (idx >= 0) {
       this.selectedAttractions.splice(idx, 1);
-      this.selectedAttractions = [...this.selectedAttractions];
     } else {
       this.selectedAttractions.push(id);
-      this.selectedAttractions = [...this.selectedAttractions];
     }
+    const next: string[] = [];
+    for (let i = 0; i < this.selectedAttractions.length; i++) {
+      next.push(this.selectedAttractions[i]);
+    }
+    this.selectedAttractions = next;
   }
 
   private validate(): boolean {
@@ -292,7 +314,7 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
+      Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.durationOptions, (item: number) => {
           Text(`${item}天`)
             .fontSize(13)
@@ -303,10 +325,9 @@ struct CreateTravelPlanPage {
             .onClick(() => {
               this.duration = item;
             })
-        }, (item: number) => `duration-${item}`)
+        }, (item: number) => `duration-flex-${item}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -320,8 +341,8 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
-        ForEach(this.budgetOptions, (item: { key: string; label: string }) => {
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.budgetOptions, (item: BudgetOption) => {
           Text(item.label)
             .fontSize(13)
             .fontColor(this.budget === item.key ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
@@ -334,10 +355,9 @@ struct CreateTravelPlanPage {
                 this.customBudget = '';
               }
             })
-        }, (item: { key: string; label: string }) => `budget-${item.key}`)
+        }, (item: BudgetOption) => `budget-${item.key}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -351,7 +371,7 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
+      Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.currencyOptions, (item: string) => {
           Text(item)
             .fontSize(13)
@@ -365,7 +385,6 @@ struct CreateTravelPlanPage {
         }, (item: string) => `currency-${item}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -379,8 +398,8 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
-        ForEach(this.styleOptions, (item: { key: string; label: string; emoji: string }) => {
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.styleOptions, (item: StyleOption) => {
           Text(`${item.emoji} ${item.label}`)
             .fontSize(13)
             .fontColor(this.travelStyle === item.key ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
@@ -390,10 +409,9 @@ struct CreateTravelPlanPage {
             .onClick(() => {
               this.travelStyle = item.key;
             })
-        }, (item: { key: string; label: string; emoji: string }) => `style-${item.key}`)
+        }, (item: StyleOption) => `style-${item.key}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -407,7 +425,7 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
+      Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.interestOptions, (item: string) => {
           Text(item)
             .fontSize(13)
@@ -421,7 +439,6 @@ struct CreateTravelPlanPage {
         }, (item: string) => `interest-${item}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -435,22 +452,20 @@ struct CreateTravelPlanPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColors.TEXT_PRIMARY)
 
-      Row({ space: 8 }) {
-        ForEach(this.attractionOptions, (item: { id: string; label: string }) => {
-          const selected = this.selectedAttractions.indexOf(item.id) >= 0;
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.attractionOptions, (item: AttractionOption) => {
           Text(item.label)
             .fontSize(13)
-            .fontColor(selected ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
-            .backgroundColor(selected ? AppColors.PRIMARY : '#F1F5F9')
+            .fontColor(this.selectedAttractions.indexOf(item.id) >= 0 ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
+            .backgroundColor(this.selectedAttractions.indexOf(item.id) >= 0 ? AppColors.PRIMARY : '#F1F5F9')
             .borderRadius(16)
             .padding({ left: 12, right: 12, top: 7, bottom: 7 })
             .onClick(async () => {
               await this.toggleAttraction(item.id);
             })
-        }, (item: { id: string; label: string }) => `attraction-${item.id}`)
+        }, (item: AttractionOption) => `attraction-${item.id}`)
       }
       .width('100%')
-      .flexWrap(FlexWrap.Wrap)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)

@@ -4,7 +4,7 @@ import { RouteConstants } from '../../common/constants/RouteConstants';
 import { AuthService } from '../../services/AuthService';
 import { UserService } from '../../services/UserService';
 import { AuthUser } from '../../models/AuthModels';
-import { User, UserHelper } from '../../models/User';
+import { Badge, User, UserHelper } from '../../models/User';
 import { TravelHistory } from '../../models/TravelHistory';
 import { TravelPlanSummary } from '../../models/TravelPlanSummary';
 import { TravelHistoryService } from '../../services/TravelHistoryService';
@@ -14,6 +14,11 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'ProfileTab';
 const DOMAIN = 0x0001;
+
+interface SocialLinkEntry {
+  label: string;
+  url: string;
+}
 
 /**
  * 个人中心 Tab - 100% 还原 Flutter ProfilePage
@@ -59,12 +64,12 @@ export struct ProfileTab {
 
       const travelHistorySvc = TravelHistoryService.getInstance();
       const planSvc = TravelPlanService.getInstance();
-      const [history, plan] = await Promise.all([
+      const pair = await Promise.all([
         travelHistorySvc.getLatest(),
         planSvc.getLatest(),
       ]);
-      this.latestTravelHistory = history;
-      this.latestTravelPlan = plan;
+      this.latestTravelHistory = pair[0];
+      this.latestTravelPlan = pair[1];
     } catch (err) {
       this.hasError = true;
       hilog.error(DOMAIN, TAG, '❌ 加载用户信息失败: %{public}s', (err as Error).message);
@@ -401,7 +406,7 @@ export struct ProfileTab {
         .fontColor(AppColors.TEXT_PRIMARY)
       if (this.userDetail && this.userDetail.badges.length > 0) {
         Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.userDetail!.badges, (badge) => {
+          ForEach(this.userDetail!.badges, (badge: Badge) => {
             Row({ space: 6 }) {
               Text(badge.icon ?? '🏅')
               Column({ space: 2 }) {
@@ -416,7 +421,7 @@ export struct ProfileTab {
             .borderRadius(12)
             .border({ width: 1, color: AppColors.BORDER_LIGHT })
             .margin({ right: 8, bottom: 8 })
-          }, (badge) => badge.id)
+          }, (badge: Badge) => badge.id)
         }
       } else {
         Text('还没有徽章，参加活动或完成行程解锁奖励。')
@@ -441,10 +446,7 @@ export struct ProfileTab {
         .fontColor(AppColors.TEXT_PRIMARY)
       if (this.userDetail && (this.userDetail.skills.length > 0 || this.userDetail.interests.length > 0)) {
         Flex({ wrap: FlexWrap.Wrap }) {
-          const tags: string[] = [];
-          this.userDetail!.skills.forEach((s) => tags.push(s.name));
-          this.userDetail!.interests.forEach((i) => tags.push(i.name));
-          ForEach(tags, (tag) => {
+          ForEach(this.getSkillInterestTags(), (tag: string) => {
             Text(tag)
               .fontSize(13)
               .fontColor(AppColors.TEXT_SECONDARY)
@@ -452,7 +454,7 @@ export struct ProfileTab {
               .borderRadius(14)
               .padding({ left: 12, right: 12, top: 6, bottom: 6 })
               .margin({ right: 8, bottom: 8 })
-          }, (tag) => tag)
+          }, (tag: string) => tag)
         }
       } else {
         Text('添加技能和兴趣，匹配志同道合的伙伴。')
@@ -483,15 +485,14 @@ export struct ProfileTab {
           .fontColor([AppColors.TEXT_TERTIARY])
       }
       if (this.latestTravelHistory) {
-        const trip = this.latestTravelHistory;
         Column({ space: 6 }) {
-          Text(`${trip.city}${trip.country ? ' · ' + trip.country : ''}`)
+          Text(`${this.latestTravelHistory!.city}${this.latestTravelHistory!.country ? ' · ' + this.latestTravelHistory!.country : ''}`)
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppColors.TEXT_PRIMARY)
-          Text(trip.isOngoing ? '进行中' : '已完成')
+          Text(this.latestTravelHistory!.isOngoing ? '进行中' : '已完成')
             .fontSize(12)
-            .fontColor(trip.isOngoing ? AppColors.SUCCESS : AppColors.TEXT_SECONDARY)
+            .fontColor(this.latestTravelHistory!.isOngoing ? AppColors.SUCCESS : AppColors.TEXT_SECONDARY)
           Text(`行程 ${this.userDetail?.stats.totalTrips ?? 0} 次 · 累计 ${this.userDetail?.stats.totalDays ?? 0} 天`)
             .fontSize(13)
             .fontColor(AppColors.TEXT_SECONDARY)
@@ -520,12 +521,10 @@ export struct ProfileTab {
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor(AppColors.TEXT_PRIMARY)
-      const links = this.userDetail?.socialLinks ?? {};
-      const entries = Object.keys(links);
-      if (entries.length > 0) {
-        ForEach(entries, (key) => {
-          this.SocialLinkRow(key, links[key])
-        }, (key) => key)
+      if (this.getSocialLinkEntries().length > 0) {
+        ForEach(this.getSocialLinkEntries(), (entry: SocialLinkEntry) => {
+          this.SocialLinkRow(entry.label, entry.url)
+        }, (entry: SocialLinkEntry) => `${entry.label}-${entry.url}`)
       } else {
         Text('暂无社交链接，添加后便于伙伴联系你。')
           .fontSize(13)
@@ -551,6 +550,39 @@ export struct ProfileTab {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
     }
+  }
+
+  private getSkillInterestTags(): string[] {
+    const tags: string[] = [];
+    if (!this.userDetail) {
+      return tags;
+    }
+
+    for (let i = 0; i < this.userDetail.skills.length; i++) {
+      tags.push(this.userDetail.skills[i].name);
+    }
+    for (let i = 0; i < this.userDetail.interests.length; i++) {
+      tags.push(this.userDetail.interests[i].name);
+    }
+    return tags;
+  }
+
+  private getSocialLinkEntries(): SocialLinkEntry[] {
+    const entries: SocialLinkEntry[] = [];
+    const links = this.userDetail?.socialLinks;
+    if (!links) {
+      return entries;
+    }
+
+    const keys = Object.keys(links);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const value = links[key];
+      if (value && value.length > 0) {
+        entries.push({ label: key, url: value } as SocialLinkEntry);
+      }
+    }
+    return entries;
   }
 
   @Builder

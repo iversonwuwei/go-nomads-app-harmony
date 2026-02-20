@@ -3,6 +3,13 @@ import { ApiConfig } from '../common/constants/ApiConfig';
 import { HttpService } from '../services/HttpService';
 import { router } from '@kit.ArkUI';
 
+interface CoworkingPayload {
+  name: string;
+  city: string;
+  address: string;
+  wifiSpeedMbps: number;
+}
+
 @Entry
 @Component
 struct AddCoworkingPage {
@@ -36,12 +43,13 @@ struct AddCoworkingPage {
     this.isSubmitting = true;
     this.errorMessage = '';
     try {
-      await HttpService.getInstance().post<Object>(ApiConfig.COWORKING_SPACES_ENDPOINT, {
+      const payload: CoworkingPayload = {
         name: nameText,
         city: cityText,
         address: addressText,
         wifiSpeedMbps: wifiValue,
-      });
+      };
+      await HttpService.getInstance().post<Object>(ApiConfig.COWORKING_SPACES_ENDPOINT, payload as Object);
       router.back();
     } catch (_err) {
       this.errorMessage = '提交失败，请稍后重试';

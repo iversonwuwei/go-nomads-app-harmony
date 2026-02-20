@@ -220,8 +220,19 @@ struct VisitedPlacesPage {
     try {
       const original = this.places[targetIndex];
       const next: VisitedPlace = {
-        ...original,
+        id: original.id,
+        travelHistoryId: original.travelHistoryId,
+        placeName: original.placeName,
+        placeType: original.placeType,
+        address: original.address,
+        latitude: original.latitude,
+        longitude: original.longitude,
+        arrivalTime: original.arrivalTime,
+        departureTime: original.departureTime,
+        durationMinutes: original.durationMinutes,
+        formattedDuration: original.formattedDuration,
         isHighlight: !original.isHighlight,
+        iconType: original.iconType,
       };
       this.places[targetIndex] = next;
       if (this.selectedPlace && this.getPlaceKey(this.selectedPlace) === this.getPlaceKey(next)) {
@@ -451,10 +462,6 @@ struct VisitedPlacesPage {
 
         if (place.address && place.address.length > 0) {
           this.DetailRow('地址', place.address)
-        }
-
-        if (place.notes && place.notes.length > 0) {
-          this.DetailRow('备注', place.notes)
         }
 
         Divider().color(AppColors.BORDER_LIGHT)

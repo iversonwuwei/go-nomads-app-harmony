@@ -36,22 +36,52 @@ export class TokenStorageService {
     return TokenStorageService.instance;
   }
 
+  /** 绑定上下文（不立即初始化，用于懒加载） */
+  bindContext(context: common.UIAbilityContext): void {
+    this.context = context;
+  }
+
+  /** 是否已完成初始化 */
+  isInitialized(): boolean {
+    return this.prefs !== null;
+  }
+
   /**
    * 初始化 Preferences（需在 Ability 中调用）
    */
   async init(context: common.UIAbilityContext): Promise<void> {
-    this.context = context;
+    this.bindContext(context);
     try {
       this.prefs = preferences.getPreferencesSync(context, { name: PREFERENCES_NAME });
       hilog.info(DOMAIN, TAG, 'Preferences initialized successfully');
     } catch (err) {
       hilog.error(DOMAIN, TAG, 'Failed to init preferences: %{public}s', JSON.stringify(err));
+      throw new Error('TokenStorageService init failed');
+    }
+  }
+
+  private ensureInitialized(): void {
+    if (this.prefs) {
+      return;
+    }
+
+    if (!this.context) {
+      throw new Error('TokenStorageService context not bound. Call init()/bindContext() first.');
+    }
+
+    try {
+      this.prefs = preferences.getPreferencesSync(this.context, { name: PREFERENCES_NAME });
+      hilog.info(DOMAIN, TAG, 'Preferences lazy-initialized successfully');
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'Failed to lazy-init preferences: %{public}s', JSON.stringify(err));
+      throw new Error('TokenStorageService lazy init failed');
     }
   }
 
   private getPrefs(): preferences.Preferences {
+    this.ensureInitialized();
     if (!this.prefs) {
-      throw new Error('TokenStorageService not initialized. Call init() first.');
+      throw new Error('TokenStorageService preferences unavailable after init.');
     }
     return this.prefs;
   }
@@ -62,7 +92,13 @@ export class TokenStorageService {
 
   /** 保存访问令牌和刷新令牌 */
   async saveTokens(accessToken: string, refreshToken?: string, expiresAt?: Date): Promise<void> {
-    const prefs = this.getPrefs();
+    let prefs: preferences.Preferences;
+    try {
+      prefs = this.getPrefs();
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'saveTokens skipped, prefs unavailable: %{public}s', JSON.stringify(err));
+      return;
+    }
     prefs.putSync(ApiConfig.AUTH_TOKEN_KEY, accessToken);
 
     if (refreshToken) {
@@ -83,7 +119,13 @@ export class TokenStorageService {
 
   /** 保存用户信息 */
   async saveUserInfo(userId: string, userName: string, userEmail: string, userRole: string): Promise<void> {
-    const prefs = this.getPrefs();
+    let prefs: preferences.Preferences;
+    try {
+      prefs = this.getPrefs();
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'saveUserInfo skipped, prefs unavailable: %{public}s', JSON.stringify(err));
+      return;
+    }
     prefs.putSync(TokenStorageService.USER_ID_KEY, userId);
     prefs.putSync(TokenStorageService.USER_NAME_KEY, userName);
     prefs.putSync(TokenStorageService.USER_EMAIL_KEY, userEmail);
@@ -183,7 +225,13 @@ export class TokenStorageService {
 
   /** 保存记住我设置 */
   async saveRememberMe(email: string, remember: boolean): Promise<void> {
-    const prefs = this.getPrefs();
+    let prefs: preferences.Preferences;
+    try {
+      prefs = this.getPrefs();
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'saveRememberMe skipped, prefs unavailable: %{public}s', JSON.stringify(err));
+      return;
+    }
     prefs.putSync(TokenStorageService.REMEMBER_ME_KEY, remember);
     if (remember) {
       prefs.putSync(TokenStorageService.SAVED_EMAIL_KEY, email);
@@ -218,7 +266,13 @@ export class TokenStorageService {
 
   /** 清除所有认证信息 */
   async clearAll(): Promise<void> {
-    const prefs = this.getPrefs();
+    let prefs: preferences.Preferences;
+    try {
+      prefs = this.getPrefs();
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'clearAll skipped, prefs unavailable: %{public}s', JSON.stringify(err));
+      return;
+    }
     // 保留记住我设置
     const rememberMe = this.isRememberMe();
     const savedEmail = this.getSavedEmail();

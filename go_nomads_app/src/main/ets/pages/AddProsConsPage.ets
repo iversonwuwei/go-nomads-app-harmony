@@ -2,6 +2,12 @@ import { AppColors } from '../common/constants/AppColors';
 import { HttpService } from '../services/HttpService';
 import { router } from '@kit.ArkUI';
 
+interface ProsConsPayload {
+  cityId: string;
+  text: string;
+  isPro: boolean;
+}
+
 @Entry
 @Component
 struct AddProsConsPage {
@@ -29,11 +35,12 @@ struct AddProsConsPage {
     this.isSubmitting = true;
     this.errorMessage = '';
     try {
-      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/pros-cons`, {
+      const payload: ProsConsPayload = {
         cityId: this.cityId,
         text: textValue,
         isPro: this.isPro,
-      });
+      };
+      await HttpService.getInstance().post<Object>(`/cities/${this.cityId}/user-content/pros-cons`, payload as Object);
       router.back();
     } catch (err) {
       this.errorMessage = '提交失败，请稍后重试';

@@ -5,6 +5,11 @@ import { MembershipPlan, UserMembership, parseMembership, parseMembershipPlan } 
 const TAG = 'MembershipService';
 const DOMAIN = 0x0001;
 
+interface UpgradeMembershipRequest {
+  level: number;
+  durationDays: number;
+}
+
 export class MembershipService {
   private static instance: MembershipService | null = null;
   private httpService: HttpService;
@@ -39,16 +44,16 @@ export class MembershipService {
   }
 
   async upgradeMembership(level: number, durationDays: number = 365): Promise<UserMembership> {
-    const body: Record<string, Object> = {
-      level: level as Object,
-      durationDays: durationDays as Object,
+    const body: UpgradeMembershipRequest = {
+      level,
+      durationDays,
     };
     try {
-      const result = await this.httpService.post<Object>('/membership/upgrade', body);
+      const result = await this.httpService.post<Object>('/membership/upgrade', body as Object);
       return parseMembership(result as Record<string, Object>);
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ upgradeMembership failed: %{public}s', (err as Error).message);
-      throw err;
+      throw new Error((err as Error).message);
     }
   }
 }

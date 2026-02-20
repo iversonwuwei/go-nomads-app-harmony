@@ -167,7 +167,7 @@ export class HttpService {
           ? response.result : JSON.stringify(response.result);
         hilog.error(DOMAIN, TAG, '❌ HTTP Error %{public}d: %{public}s',
           response.responseCode, errorBody);
-        throw new Error(`HTTP Error ${response.responseCode}: ${errorBody}`);
+        throw new Error(this.extractBackendErrorMessage(response.responseCode, response.result));
       }
 
       // 解析响应
@@ -263,6 +263,53 @@ export class HttpService {
         // PATCH 等方法通过 POST + X-HTTP-Method-Override 处理
         return http.RequestMethod.POST;
     }
+  }
+
+  private extractBackendErrorMessage(statusCode: number, result: Object | string | number | boolean | ArrayBuffer | null): string {
+    let payload: Object | null = null;
+    if (typeof result === 'string') {
+      try {
+        payload = JSON.parse(result) as Object;
+      } catch {
+        const text = result.trim();
+        return text ? `请求失败(${statusCode}): ${text}` : `请求失败(${statusCode})`;
+      }
+    } else if (result && typeof result === 'object') {
+      payload = result as Object;
+    }
+
+    if (payload) {
+      const record = payload as Record<string, Object | string | number | boolean | undefined>;
+      const message = record['message'];
+      if (typeof message === 'string' && message.trim().length > 0) {
+        return message;
+      }
+
+      const title = record['title'];
+      if (typeof title === 'string' && title.trim().length > 0) {
+        const errorsObj = record['errors'];
+        if (errorsObj && typeof errorsObj === 'object') {
+          const errorsRecord = errorsObj as Record<string, Object | string | number | boolean | undefined>;
+          const keys = Object.keys(errorsRecord);
+          if (keys.length > 0) {
+            const first = errorsRecord[keys[0]];
+            if (typeof first === 'string' && first.trim().length > 0) {
+              return first;
+            }
+            if (first && typeof first === 'object') {
+              const firstObj = first as Record<string, Object | string | number | boolean | undefined>;
+              const firstArr = firstObj['0'];
+              if (typeof firstArr === 'string' && firstArr.trim().length > 0) {
+                return firstArr;
+              }
+            }
+          }
+        }
+        return title;
+      }
+    }
+
+    return `请求失败(${statusCode})`;
   }
 
   // ============================================================

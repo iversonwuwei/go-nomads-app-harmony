@@ -208,16 +208,15 @@ struct CreateMeetupPage {
       const maxCap = this.maxCapacity ? parseInt(this.maxCapacity) : 0;
 
       if (this.isEditMode) {
-        const updates: Record<string, Object> = {
-          title: this.title.trim() as Object,
-          description: this.description as Object,
-          location: this.venueName as Object,
-          address: this.venueAddress as Object,
-          category: this.meetupType as Object,
-          startTime: startTimeStr as Object,
-          endTime: endTimeStr as Object,
-          maxParticipants: maxCap as Object,
-        };
+        const updates: Record<string, Object> = {};
+        updates['title'] = this.title.trim() as Object;
+        updates['description'] = this.description as Object;
+        updates['location'] = this.venueName as Object;
+        updates['address'] = this.venueAddress as Object;
+        updates['category'] = this.meetupType as Object;
+        updates['startTime'] = startTimeStr as Object;
+        updates['endTime'] = endTimeStr as Object;
+        updates['maxParticipants'] = maxCap as Object;
         await meetupService.updateMeetup(this.meetupId, updates);
         hilog.info(DOMAIN, TAG, '✅ 聚会更新成功');
       } else {

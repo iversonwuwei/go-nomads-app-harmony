@@ -41,35 +41,82 @@ export class CommunityService {
   }
 
   async getTripReports(): Promise<TripReport[]> {
-    return [...this.tripReports];
+    const list: TripReport[] = [];
+    for (let i = 0; i < this.tripReports.length; i++) {
+      list.push(this.tripReports[i]);
+    }
+    return list;
   }
 
   async getRecommendations(category: string = 'All'): Promise<CityRecommendation[]> {
     if (category === 'All') {
-      return [...this.recommendations];
+      const all: CityRecommendation[] = [];
+      for (let i = 0; i < this.recommendations.length; i++) {
+        all.push(this.recommendations[i]);
+      }
+      return all;
     }
     return this.recommendations.filter((item) => item.category === category);
   }
 
   async getQuestions(): Promise<Question[]> {
-    return [...this.questions];
+    const list: Question[] = [];
+    for (let i = 0; i < this.questions.length; i++) {
+      list.push(this.questions[i]);
+    }
+    return list;
   }
 
   toggleLikeTripReport(id: string): TripReport[] {
     this.tripReports = this.tripReports.map((item) => {
       if (item.id !== id) return item;
       const nextLiked = !item.isLiked;
-      return { ...item, isLiked: nextLiked, likes: nextLiked ? item.likes + 1 : item.likes - 1 };
+      const updated: TripReport = {
+        id: item.id,
+        userId: item.userId,
+        userName: item.userName,
+        city: item.city,
+        country: item.country,
+        overallRating: item.overallRating,
+        title: item.title,
+        content: item.content,
+        likes: nextLiked ? item.likes + 1 : item.likes - 1,
+        comments: item.comments,
+        isLiked: nextLiked,
+        createdAt: item.createdAt,
+      };
+      return updated;
     });
-    return [...this.tripReports];
+    const list: TripReport[] = [];
+    for (let i = 0; i < this.tripReports.length; i++) {
+      list.push(this.tripReports[i]);
+    }
+    return list;
   }
 
   toggleUpvoteQuestion(id: string): Question[] {
     this.questions = this.questions.map((item) => {
       if (item.id !== id) return item;
       const nextUpvoted = !item.isUpvoted;
-      return { ...item, isUpvoted: nextUpvoted, upvotes: nextUpvoted ? item.upvotes + 1 : item.upvotes - 1 };
+      const updated: Question = {
+        id: item.id,
+        userId: item.userId,
+        userName: item.userName,
+        city: item.city,
+        title: item.title,
+        content: item.content,
+        tags: item.tags,
+        upvotes: nextUpvoted ? item.upvotes + 1 : item.upvotes - 1,
+        answerCount: item.answerCount,
+        isUpvoted: nextUpvoted,
+        createdAt: item.createdAt,
+      };
+      return updated;
     });
-    return [...this.questions];
+    const list: Question[] = [];
+    for (let i = 0; i < this.questions.length; i++) {
+      list.push(this.questions[i]);
+    }
+    return list;
   }
 }

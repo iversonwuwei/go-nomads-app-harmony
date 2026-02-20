@@ -167,7 +167,6 @@ struct MembershipPlanPage {
 
   @Builder
   PlanCard(plan: MembershipPlan) {
-    const selected = this.selectedPlanLevel === plan.level;
     Column({ space: 8 }) {
       Row() {
         Text(plan.name).fontSize(18).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY).layoutWeight(1)
@@ -175,21 +174,21 @@ struct MembershipPlanPage {
       }
       Column({ space: 4 }) {
         ForEach(plan.features.slice(0, 6), (perk: string) => {
-          Text(`• ${perk}`).fontSize(13).fontColor(selected ? AppColors.TEXT_PRIMARY : AppColors.TEXT_SECONDARY)
+          Text(`• ${perk}`).fontSize(13).fontColor(this.selectedPlanLevel === plan.level ? AppColors.TEXT_PRIMARY : AppColors.TEXT_SECONDARY)
         }, (perk: string) => perk)
       }
-      Button(selected ? '当前已选' : '选择此计划')
+      Button(this.selectedPlanLevel === plan.level ? '当前已选' : '选择此计划')
         .height(40)
         .borderRadius(10)
-        .backgroundColor(selected ? '#E2E8F0' : AppColors.PRIMARY)
-        .fontColor(selected ? AppColors.TEXT_SECONDARY : AppColors.WHITE)
-        .enabled(!selected && !this.isUpgrading)
+        .backgroundColor(this.selectedPlanLevel === plan.level ? '#E2E8F0' : AppColors.PRIMARY)
+        .fontColor(this.selectedPlanLevel === plan.level ? AppColors.TEXT_SECONDARY : AppColors.WHITE)
+        .enabled(this.selectedPlanLevel !== plan.level && !this.isUpgrading)
         .onClick(() => {
           this.upgrade(plan);
         })
     }
     .width('100%').padding(14).backgroundColor(AppColors.WHITE)
     .borderRadius(12)
-    .border({ width: selected ? 2 : 1, color: selected ? AppColors.PRIMARY : AppColors.BORDER_LIGHT })
+    .border({ width: this.selectedPlanLevel === plan.level ? 2 : 1, color: this.selectedPlanLevel === plan.level ? AppColors.PRIMARY : AppColors.BORDER_LIGHT })
   }
 }

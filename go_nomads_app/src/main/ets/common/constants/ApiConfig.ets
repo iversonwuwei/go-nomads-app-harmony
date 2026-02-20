@@ -133,6 +133,8 @@ export class ApiConfig {
   static readonly REFRESH_TOKEN_ENDPOINT: string = '/auth/refresh';
   static readonly CHANGE_PASSWORD_ENDPOINT: string = '/auth/change-password';
   static readonly SOCIAL_LOGIN_ENDPOINT: string = '/auth/social-login';
+  static readonly SMS_SEND_CODE_ENDPOINT: string = '/auth/sms/send-code';
+  static readonly PHONE_LOGIN_ENDPOINT: string = '/auth/login/phone';
 
   // ============================================================
   // User Endpoints - /api/v1/users

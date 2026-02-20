@@ -12,6 +12,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const TAG = 'VisitedPlaceService';
 const DOMAIN = 0x0001;
 
+interface HighlightPayload {
+  isHighlight: boolean;
+}
+
+interface EmptyVisitedPlacesResult {
+  items: VisitedPlace[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 export class VisitedPlaceService {
   private static instance: VisitedPlaceService | null = null;
   private httpService: HttpService;
@@ -100,11 +111,11 @@ export class VisitedPlaceService {
     }
     try {
       const endpoint = `/visited-places/city-summary/${encodeURIComponent(cityId)}`;
+      const queryParams: Record<string, string> = {};
+      queryParams['page'] = page.toString();
+      queryParams['pageSize'] = pageSize.toString();
       const result = await this.httpService.get<Object>(endpoint, {
-        queryParams: {
-          page: page.toString(),
-          pageSize: pageSize.toString(),
-        },
+        queryParams,
       });
       const obj = this.unwrapObjectPayload(result);
       if (!obj) {
@@ -118,7 +129,7 @@ export class VisitedPlaceService {
   }
 
   async getCityVisitedPlaces(cityId: string, page: number = 1, pageSize: number = 20): Promise<PaginatedVisitedPlaces> {
-    const emptyResult: PaginatedVisitedPlaces = {
+    const emptyResult: EmptyVisitedPlacesResult = {
       items: [],
       totalCount: 0,
       page: 1,
@@ -131,11 +142,11 @@ export class VisitedPlaceService {
 
     try {
       const endpoint = `/visited-places/city-summary/${encodeURIComponent(cityId)}`;
+      const queryParams: Record<string, string> = {};
+      queryParams['page'] = page.toString();
+      queryParams['pageSize'] = pageSize.toString();
       const result = await this.httpService.get<Object>(endpoint, {
-        queryParams: {
-          page: page.toString(),
-          pageSize: pageSize.toString(),
-        },
+        queryParams,
       });
       const obj = this.unwrapObjectPayload(result);
       if (!obj) {
@@ -154,9 +165,10 @@ export class VisitedPlaceService {
       return false;
     }
     try {
-      await this.httpService.patch<Object>(`/visited-places/${encodeURIComponent(placeId)}/highlight`, {
+      const body: HighlightPayload = {
         isHighlight,
-      });
+      };
+      await this.httpService.patch<Object>(`/visited-places/${encodeURIComponent(placeId)}/highlight`, body as Object);
       return true;
     } catch (err) {
       hilog.error(DOMAIN, TAG, '❌ toggleHighlight failed: %{public}s', (err as Error).message);

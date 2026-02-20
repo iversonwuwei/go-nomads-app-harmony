@@ -1,10 +1,9 @@
-import { Meetup, MeetupHelper } from '../models/Meetup';
+import { Meetup, MeetupHelper, MeetupParticipantInfo } from '../models/Meetup';
 import { MeetupService } from '../services/MeetupService';
 import { AppColors } from '../common/constants/AppColors';
 import { AppStorageKeys } from '../common/constants/AppStorageKeys';
 import { RouteConstants } from '../common/constants/RouteConstants';
 import { router } from '@kit.ArkUI';
-import clipboard from '@ohos.clipboard';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG = 'MeetupDetailPage';
@@ -141,14 +140,8 @@ struct MeetupDetailPage {
     }
     this.actionError = '';
     this.buildShareContent();
-    try {
-      await clipboard.setData(this.shareDescription);
-      this.actionMessage = '分享文案已复制，可直接粘贴发送';
-      hilog.info(DOMAIN, TAG, '✅ 分享文案已复制');
-    } catch (err) {
-      this.actionError = (err as Error).message;
-      hilog.error(DOMAIN, TAG, '❌ 复制分享文案失败: %{public}s', (err as Error).message);
-    }
+    this.actionMessage = '分享文案已生成，可手动复制发送';
+    hilog.info(DOMAIN, TAG, '✅ 分享文案已生成');
   }
 
   build() {
@@ -337,10 +330,11 @@ struct MeetupDetailPage {
         .height(220)
         .justifyContent(FlexAlign.Center)
         .backgroundColor('#E2E8F0')
+      }
     }
-  }
     .width('100%')
     .height(220)
+  }
 
   @Builder
   InfoSection() {
@@ -486,9 +480,6 @@ struct MeetupDetailPage {
 
   @Builder
   ParticipantsSection() {
-    const participants = this.meetup!.participants ?? [];
-    const displayCount = this.showAllParticipants ? participants.length : Math.min(participants.length, 10);
-
     Column({ space: 8 }) {
       Row() {
         Text('参与者')
@@ -502,10 +493,10 @@ struct MeetupDetailPage {
       }
       .width('100%')
 
-      if (participants.length > 0) {
-        Scroll({ direction: Axis.Horizontal }) {
+      if ((this.meetup!.participants ?? []).length > 0) {
+        Scroll() {
           Row({ space: 10 }) {
-            ForEach(participants.slice(0, displayCount), (p) => {
+            ForEach((this.meetup!.participants ?? []).slice(0, this.showAllParticipants ? (this.meetup!.participants ?? []).length : Math.min((this.meetup!.participants ?? []).length, 10)), (p: MeetupParticipantInfo) => {
               Column({ space: 6 }) {
                 if (p.avatarUrl) {
                   Image(p.avatarUrl)
@@ -546,13 +537,13 @@ struct MeetupDetailPage {
                   });
                 }
               })
-            }, (p) => p.id)
+            }, (p: MeetupParticipantInfo) => p.id)
           }
           .padding({ top: 4, bottom: 6 })
         }
         .width('100%')
 
-        if (participants.length > 10) {
+        if ((this.meetup!.participants ?? []).length > 10) {
           Text(this.showAllParticipants ? '收起' : '查看全部')
             .fontSize(12)
             .fontColor(AppColors.PRIMARY)
@@ -564,7 +555,7 @@ struct MeetupDetailPage {
 
         if (this.showAllParticipants) {
           Column({ space: 8 }) {
-            ForEach(participants, (p) => {
+            ForEach((this.meetup!.participants ?? []), (p: MeetupParticipantInfo) => {
               Row({ space: 10 }) {
                 if (p.avatarUrl) {
                   Image(p.avatarUrl)
@@ -618,7 +609,7 @@ struct MeetupDetailPage {
                   });
                 }
               })
-            }, (p) => `${p.id}-full`)
+            }, (p: MeetupParticipantInfo) => `${p.id}-full`)
           }
           .width('100%')
           .margin({ top: 8 })
