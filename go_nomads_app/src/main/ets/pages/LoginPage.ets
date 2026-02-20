@@ -421,7 +421,7 @@ struct LoginPage {
       if (this.isChineseUser()) {
         Row({ space: 12 }) {
           this.SocialButton('微信', 'wechat', AppColors.WECHAT_GREEN)
-          this.SocialButton('抖音', 'douyin', AppColors.TEXT_BLACK87)
+          this.SocialButton('QQ', 'qq', '#12B7F5')
         }
         .width('100%')
 
