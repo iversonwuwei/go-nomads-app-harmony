@@ -1,7 +1,7 @@
 {
   "app": {
     "bundleName": "com.example.go_nomads_app_harmony",
-    "vendor": "example",
+    "vendor": "大连素辉软件科技有限公司",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:layered_image",
