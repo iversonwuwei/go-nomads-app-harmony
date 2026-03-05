@@ -14,6 +14,7 @@ struct MembershipPlanPage {
   @State errorMsg: string = '';
   @State selectedPlanLevel: number = -1;
   @State actionMessage: string = '';
+  @State isMonthlyBilling: boolean = false;
 
   aboutToAppear(): void {
     this.loadData();
@@ -51,7 +52,8 @@ struct MembershipPlanPage {
     this.actionMessage = '';
     try {
       const service = MembershipService.getInstance();
-      const updated = await service.upgradeMembership(plan.level, 365);
+      const durationDays = this.isMonthlyBilling ? 30 : 365;
+      const updated = await service.upgradeMembership(plan.level, durationDays);
       this.membership = updated;
       this.selectedPlanLevel = updated.level;
       this.actionMessage = `已升级到 ${plan.name}`;
@@ -102,6 +104,9 @@ struct MembershipPlanPage {
         Scroll() {
           Column({ space: 12 }) {
             this.CurrentStatusCard()
+
+            // 计费周期切换
+            this.BillingCycleToggle()
 
             if (this.actionMessage.length > 0) {
               Text(this.actionMessage)
@@ -166,18 +171,58 @@ struct MembershipPlanPage {
   }
 
   @Builder
+  BillingCycleToggle() {
+    Row() {
+      Text('月付')
+        .fontSize(14)
+        .fontWeight(this.isMonthlyBilling ? FontWeight.Bold : FontWeight.Normal)
+        .fontColor(this.isMonthlyBilling ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
+        .layoutWeight(1)
+        .textAlign(TextAlign.Center)
+        .padding({ top: 10, bottom: 10 })
+        .backgroundColor(this.isMonthlyBilling ? AppColors.PRIMARY : 'transparent')
+        .borderRadius(8)
+        .onClick(() => { this.isMonthlyBilling = true; })
+
+      Text('年付（优惠）')
+        .fontSize(14)
+        .fontWeight(!this.isMonthlyBilling ? FontWeight.Bold : FontWeight.Normal)
+        .fontColor(!this.isMonthlyBilling ? AppColors.WHITE : AppColors.TEXT_SECONDARY)
+        .layoutWeight(1)
+        .textAlign(TextAlign.Center)
+        .padding({ top: 10, bottom: 10 })
+        .backgroundColor(!this.isMonthlyBilling ? AppColors.PRIMARY : 'transparent')
+        .borderRadius(8)
+        .onClick(() => { this.isMonthlyBilling = false; })
+    }
+    .width('100%')
+    .padding(4)
+    .backgroundColor('#F1F5F9')
+    .borderRadius(10)
+  }
+
+  @Builder
   PlanCard(plan: MembershipPlan) {
     Column({ space: 8 }) {
       Row() {
         Text(plan.name).fontSize(18).fontWeight(FontWeight.Bold).fontColor(AppColors.TEXT_PRIMARY).layoutWeight(1)
-        Text(`¥${plan.priceMonthly.toFixed(0)}/月`).fontSize(16).fontColor(AppColors.PRIMARY).fontWeight(FontWeight.Medium)
+        Column() {
+          Text(`¥${this.isMonthlyBilling ? plan.priceMonthly.toFixed(0) : plan.priceYearly.toFixed(0)}/${this.isMonthlyBilling ? '月' : '年'}`)
+            .fontSize(16).fontColor(AppColors.PRIMARY).fontWeight(FontWeight.Medium)
+          if (!this.isMonthlyBilling) {
+            Text(`省 ¥${(plan.priceMonthly * 12 - plan.priceYearly).toFixed(0)}`)
+              .fontSize(11).fontColor('#16A34A').fontWeight(FontWeight.Medium)
+          }
+        }
+        .alignItems(HorizontalAlign.End)
       }
       Column({ space: 4 }) {
         ForEach(plan.features.slice(0, 6), (perk: string) => {
           Text(`• ${perk}`).fontSize(13).fontColor(this.selectedPlanLevel === plan.level ? AppColors.TEXT_PRIMARY : AppColors.TEXT_SECONDARY)
         }, (perk: string) => perk)
       }
-      Button(this.selectedPlanLevel === plan.level ? '当前已选' : '选择此计划')
+      Button(this.selectedPlanLevel === plan.level ? '当前已选' :
+        `¥${this.isMonthlyBilling ? plan.priceMonthly.toFixed(0) : plan.priceYearly.toFixed(0)}/${this.isMonthlyBilling ? '月' : '年'} · 选择此计划`)
         .height(40)
         .borderRadius(10)
         .backgroundColor(this.selectedPlanLevel === plan.level ? '#E2E8F0' : AppColors.PRIMARY)
