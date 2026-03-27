@@ -4,6 +4,12 @@ applyTo: "**/*.{ets,ts}"
 
 # HarmonyOS 鸿蒙 App 开发规范
 
+## Harness Engineering 基线
+- 本工程默认遵循根目录 `HARNESS_ENGINEERING_CHECKLIST.md`。
+- 交付说明默认遵循根目录 `HARNESS_DELIVERY_TEMPLATE.md`。
+- 开发前先明确页面路由、状态存储、接口依赖、权限和失败恢复方案。
+- 交付时需说明已验证机型/场景、未验证平台差异，以及对 Flutter 对齐面的影响。
+
 ## 技术栈
 - HarmonyOS SDK 6.0.1(21)
 - ArkTS（TypeScript-like 语言）
